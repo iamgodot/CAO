@@ -4,6 +4,25 @@ CAO allows you to chat with Claude directly in a note.
 
 ![](./demo.gif)
 
+## Installation
+
+Currently, CAO has to be installed manually:
+
+1. Download `main.js` and `manifest.json` from the newest release [here](https://github.com/iamgodot/CAO/releases)
+2. Go to your vault and create a folder for CAO: `.obsidian/plugins/CAO`
+3. Copy both downloaded files in the created folder
+4. Go to settings, select Community plugins, refresh installed plugins and enable CAO
+
+Or you can check out [this video](https://www.youtube.com/watch?v=ffGfVBLDI_0&ab_channel=BrandonBoswell).
+
+## Usage
+
+1. After installation, set your Claude API key in CAO settings
+2. Use "Open new chat" command to create a new chat note
+3. Optionally, use "Add/Reset chat options" command for customization
+4. Type out a question and use "Get response" to get replies
+5. Next time, use "Open last chat" to continue last conversation
+
 ## Features
 
 1. [x] Chat in notes with editable content
