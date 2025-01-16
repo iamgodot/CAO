@@ -47,10 +47,8 @@ export function sleep(ms: number): Promise<void> {
 }
 
 export function setCursorToEnd(editor: Editor): void {
-	editor.setCursor(
-		editor.lastLine(),
-		editor.getLine(editor.lastLine()).length,
-	);
+	const lastLine = editor.lastLine();
+	editor.setCursor(lastLine, editor.getLine(lastLine).length);
 }
 
 export async function streamText(

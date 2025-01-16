@@ -151,7 +151,7 @@ export default class CAO extends Plugin {
 						.map((item: TextBlock) => item.text)
 						.join("") +
 					"\n\n### Me\n";
-				streamText(editor, generatedText, 50);
+				await streamText(editor, generatedText, 50);
 				setCursorToEnd(editor);
 			},
 		});
