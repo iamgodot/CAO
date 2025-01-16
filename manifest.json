@@ -3,9 +3,8 @@
 	"name": "CAO",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Claude AI for Obsidian.",
+	"description": "Integrate Claude AI for chatting in notes.",
 	"author": "Godot",
 	"authorUrl": "https://github.com/iamgodot",
-	"fundingUrl": "https://obsidian.md/pricing",
 	"isDesktopOnly": false
 }
