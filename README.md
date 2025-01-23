@@ -13,7 +13,7 @@ Currently, CAO has to be installed manually:
 3. Copy both downloaded files in the created folder
 4. Go to settings, select Community plugins, refresh installed plugins and enable CAO
 
-Or you can check out [this video](https://www.youtube.com/watch?v=ffGfVBLDI_0&ab_channel=BrandonBoswell).
+Or you can check out [brat](https://github.com/TfTHacker/obsidian42-brat) for auto install and update.
 
 ## Usage
 
