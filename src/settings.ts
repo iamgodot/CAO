@@ -23,8 +23,6 @@ export class CAOSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h1", { text: "CAO Settings" });
-
 		new Setting(containerEl)
 			.setName("Chat folder path")
 			.setDesc(
