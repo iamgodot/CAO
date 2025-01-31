@@ -139,8 +139,6 @@ export default class CAO extends Plugin {
 					await this.anthropic.messages.create(chatOptions);
 
 				if (!response || !response.content) {
-					console.log("Chat options:", chatOptions);
-					console.log("Response:", response);
 					new Notice("No response received, try again later");
 				}
 
