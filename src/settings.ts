@@ -26,7 +26,7 @@ export class CAOSettingTab extends PluginSettingTab {
 		containerEl.createEl("h1", { text: "CAO Settings" });
 
 		new Setting(containerEl)
-			.setName("Chat Folder Path")
+			.setName("Chat folder path")
 			.setDesc(
 				"Path to store chat history files (relative to vault root)",
 			)
@@ -45,7 +45,7 @@ export class CAOSettingTab extends PluginSettingTab {
 					}),
 			);
 		new Setting(containerEl)
-			.setName("API Key")
+			.setName("API key")
 			.setDesc("Enter your Anthropic API key")
 			.addText((text) =>
 				text
@@ -73,7 +73,7 @@ export class CAOSettingTab extends PluginSettingTab {
 					}),
 			);
 		new Setting(containerEl)
-			.setName("Max Tokens")
+			.setName("Max tokens")
 			.setDesc("Maximum number of tokens in response")
 			.addText((text) =>
 				text
@@ -125,7 +125,7 @@ export class CAOSettingTab extends PluginSettingTab {
 					}),
 			);
 		new Setting(containerEl)
-			.setName("System Prompt")
+			.setName("System prompt")
 			.setDesc("Default system prompt for Claude")
 			.addTextArea((text) =>
 				text

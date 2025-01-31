@@ -26,7 +26,7 @@ export default class CAO extends Plugin {
 
 		this.addCommand({
 			id: "open-new-chat",
-			name: "Open New Chat",
+			name: "Open new chat",
 			callback: async () => {
 				const formattedDateTime = format(
 					new Date(),
@@ -54,7 +54,7 @@ export default class CAO extends Plugin {
 
 		this.addCommand({
 			id: "open-last-chat",
-			name: "Open Last Chat",
+			name: "Open last chat",
 			callback: async () => {
 				const folderPath = this.settings.chatFolderPath;
 				if (!(await this.app.vault.adapter.exists(folderPath))) {
@@ -158,7 +158,7 @@ export default class CAO extends Plugin {
 
 		this.addCommand({
 			id: "add-chat-options",
-			name: "Add/Reset Chat Options in Frontmatter",
+			name: "Add/Reset chat options in frontmatter",
 			editorCallback: async (_: Editor, view: MarkdownView) => {
 				const currentFile = view.file;
 				if (!currentFile) {
