@@ -6,14 +6,7 @@ CAO allows you to chat with Claude directly in a note.
 
 ## Installation
 
-Currently, CAO has to be installed manually:
-
-1. Download `main.js` and `manifest.json` from the newest release [here](https://github.com/iamgodot/CAO/releases)
-2. Go to your vault and create a folder for CAO: `.obsidian/plugins/CAO`
-3. Copy both downloaded files in the created folder
-4. Go to settings, select Community plugins, refresh installed plugins and enable CAO
-
-Or you can check out [brat](https://github.com/TfTHacker/obsidian42-brat) for auto install and update.
+Search for CAO in Obsidian's community plugins page.
 
 ## Usage
 
