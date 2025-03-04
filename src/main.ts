@@ -85,7 +85,7 @@ export default class CAO extends Plugin {
 				}
 
 				const currentText = editor.getValue();
-				const messages = parseChat(currentText);
+				const messages = await parseChat(this.app, currentText);
 				if (!messages || messages.length === 0) {
 					new Notice(
 						'Invalid chat format. Messages should alternate between "### Me" and "### CAO"',
