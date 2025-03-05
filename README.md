@@ -20,9 +20,8 @@ Search for CAO in Obsidian's community plugins page.
 
 1. [x] Chat in notes with editable content
 2. [x] Manage chat histories with note files
-3. [x] Customize chat options in front matter
-4. [ ] Utilize built-in prompts
-5. [ ] Use any notes as chat context
+3. [x] Customize chat options in **front matter**
+4. [x] Use **wikilinks** for notes as chat context
 
 ## Commands
 
@@ -31,7 +30,7 @@ Search for CAO in Obsidian's community plugins page.
 3. Get response: Interact with Claude for replies.
 4. Add/Reset chat options: Properties will be created/restored in front matter.
 
-**You should add a hot key for getting responses, such as "Ctrl + s"**
+**You can add a hot key for quickly getting responses, such as "Cmd/Ctrl + ."**
 
 ## Chat Options
 
@@ -44,13 +43,9 @@ Here're the available chat options to use in front matter:
 
 ## Supported Models
 
-1. Claude 3.5 Sonnet: `claude-3-5-sonnet-latest`
-2. Claude 3.5 Haiku: `claude-3-5-haiku-latest`
-3. Claude 3 Opus: `claude-3-opus-latest`
-4. Claude 3 Sonnet: `claude-3-sonnet-20240229`
-5. Claude 3 Haiku: `claude-3-haiku-20240307`
+All the Claude models are supported by CAO, take a look at [here](https://docs.anthropic.com/en/docs/about-claude/models/all-models) for more details.
 
-**To use other models, you can customize in front matter.**
+**To use a model other than the default one, you can set it in front matter.**
 
 ## Contributing
 
