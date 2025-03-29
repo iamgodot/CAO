@@ -27,9 +27,7 @@ export class CAOSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Chat folder path")
-			.setDesc(
-				"Path to store chat history files (relative to vault root)",
-			)
+			.setDesc("Path to store chat history files(relative to vault root)")
 			.addText((text) =>
 				text
 					.setPlaceholder("CAO/history")
@@ -118,7 +116,7 @@ export class CAOSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Temperature")
 			.setDesc(
-				"Controls randomness in responses (0.0 to 1.0). Lower values make responses more focused and deterministic, higher values make responses more creative and varied.",
+				"Controls randomness in responses(0.0 to 1.0). Lower values make responses more deterministic, while higher values get more creative.",
 			)
 			.addText((text) =>
 				text
@@ -157,8 +155,8 @@ export class CAOSettingTab extends PluginSettingTab {
 					}),
 			);
 		new Setting(containerEl)
-			.setName("Enable streaming")
-			.setDesc("Stream responses as they're generated")
+			.setName("Streaming response")
+			.setDesc("Stream response content as they're generated")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.streamingResponse)
