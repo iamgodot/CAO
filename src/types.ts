@@ -5,6 +5,7 @@ export interface CAOSettings {
 	systemPrompt: string;
 	temperature: number;
 	chatFolderPath: string;
+	streamingResponse: boolean;
 }
 
 export interface ChatMessage {

@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: CAOSettings = {
 	systemPrompt: "You are a helpful AI assistant",
 	temperature: 1.0,
 	chatFolderPath: "CAO/history",
+	streamingResponse: true,
 };
 
 export class CAOSettingTab extends PluginSettingTab {
@@ -151,6 +152,17 @@ export class CAOSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.systemPrompt)
 					.onChange(async (value) => {
 						this.plugin.settings.systemPrompt = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+		new Setting(containerEl)
+			.setName("Enable streaming")
+			.setDesc("Stream responses as they're generated (recommended)")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.streamingResponse)
+					.onChange(async (value) => {
+						this.plugin.settings.streamingResponse = value;
 						await this.plugin.saveSettings();
 					}),
 			);
