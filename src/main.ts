@@ -135,24 +135,26 @@ export default class CAO extends Plugin {
 						},
 					);
 				}
+				let tokenCount = 0;
+				let interval = 0;
 				if (this.settings.streamingResponse) {
-					await streamText(editor, "\n\n### CAO\n", 50);
+					interval = 0;
+					await streamText(editor, "\n\n### CAO\n", interval);
 					const stream = this.anthropic.messages.stream(chatOptions);
 					for await (const event of stream) {
 						if (event.type === "content_block_delta") {
-							await streamText(editor, event.delta.text, 50);
-						}
-						if (event.type === "message_delta") {
-							const tokenCount = event.usage?.output_tokens || 0;
 							await streamText(
 								editor,
-								`\n(${tokenCount} tokens)`,
-								50,
+								event.delta.text,
+								interval,
 							);
 						}
+						if (event.type === "message_delta") {
+							tokenCount = event.usage?.output_tokens || 0;
+						}
 					}
-					await streamText(editor, "\n\n### Me\n", 50);
 				} else {
+					interval = 50;
 					const response =
 						await this.anthropic.messages.create(chatOptions);
 
@@ -160,15 +162,22 @@ export default class CAO extends Plugin {
 						new Notice("No response received, try again later");
 					}
 
-					const tokenCount = response.usage?.output_tokens || 0;
+					tokenCount = response.usage?.output_tokens || 0;
 					const generatedText =
-						`\n\n### CAO(${tokenCount} tokens)\n` +
+						`\n\n### CAO\n` +
 						response.content
 							.map((item: TextBlock) => item.text)
-							.join("") +
-						"\n\n### Me\n";
-					await streamText(editor, generatedText, 50);
+							.join("");
+					await streamText(editor, generatedText, interval);
 				}
+				if (this.settings.showStats) {
+					await streamText(
+						editor,
+						`\n(${tokenCount} tokens)`,
+						interval,
+					);
+				}
+				await streamText(editor, "\n\n### Me\n", interval);
 				setCursorToEnd(editor);
 			},
 		});

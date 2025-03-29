@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: CAOSettings = {
 	temperature: 1.0,
 	chatFolderPath: "CAO/history",
 	streamingResponse: true,
+	showStats: true,
 };
 
 export class CAOSettingTab extends PluginSettingTab {
@@ -157,12 +158,23 @@ export class CAOSettingTab extends PluginSettingTab {
 			);
 		new Setting(containerEl)
 			.setName("Enable streaming")
-			.setDesc("Stream responses as they're generated (recommended)")
+			.setDesc("Stream responses as they're generated")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.streamingResponse)
 					.onChange(async (value) => {
 						this.plugin.settings.streamingResponse = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+		new Setting(containerEl)
+			.setName("Show stats")
+			.setDesc("Show numbers of tokens in responses")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showStats)
+					.onChange(async (value) => {
+						this.plugin.settings.showStats = value;
 						await this.plugin.saveSettings();
 					}),
 			);

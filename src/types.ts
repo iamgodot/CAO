@@ -6,6 +6,7 @@ export interface CAOSettings {
 	temperature: number;
 	chatFolderPath: string;
 	streamingResponse: boolean;
+	showStats: boolean;
 }
 
 export interface ChatMessage {
