@@ -64,10 +64,6 @@ export class CAOSettingTab extends PluginSettingTab {
 						"Claude 4.5 Sonnet (latest)",
 					)
 					.addOption(
-						"claude-sonnet-4-5",
-						"Claude 4.5 Sonnet (latest)",
-					)
-					.addOption(
 						"claude-sonnet-4-0",
 						"Claude 4.0 Sonnet (latest)",
 					)
