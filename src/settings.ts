@@ -5,7 +5,7 @@ import CAO from "./main";
 export const DEFAULT_SETTINGS: CAOSettings = {
 	apiKey: "",
 	maxTokens: 1024,
-	model: "claude-3-7-sonnet-latest",
+	model: "claude-sonnet-4-5",
 	systemPrompt: "You are a helpful AI assistant",
 	temperature: 1.0,
 	chatFolderPath: "CAO/history",
@@ -59,6 +59,18 @@ export class CAOSettingTab extends PluginSettingTab {
 			.setDesc("Claude model to use")
 			.addDropdown((dropdown) =>
 				dropdown
+					.addOption(
+						"claude-sonnet-4-5",
+						"Claude 4.5 Sonnet (latest)",
+					)
+					.addOption(
+						"claude-sonnet-4-5",
+						"Claude 4.5 Sonnet (latest)",
+					)
+					.addOption(
+						"claude-sonnet-4-0",
+						"Claude 4.0 Sonnet (latest)",
+					)
 					.addOption(
 						"claude-3-7-sonnet-latest",
 						"Claude 3.7 Sonnet (latest)",
