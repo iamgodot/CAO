@@ -5,7 +5,7 @@ import CAO from "./main";
 export const DEFAULT_SETTINGS: CAOSettings = {
 	apiKey: "",
 	maxTokens: 1024,
-	model: "claude-3-7-sonnet-latest",
+	model: "claude-sonnet-4-5",
 	systemPrompt: "You are a helpful AI assistant",
 	temperature: 1.0,
 	chatFolderPath: "CAO/history",
@@ -60,6 +60,14 @@ export class CAOSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption(
+						"claude-sonnet-4-5",
+						"Claude 4.5 Sonnet (latest)",
+					)
+					.addOption(
+						"claude-sonnet-4-0",
+						"Claude 4.0 Sonnet  (latest)",
+					)
+					.addOption(
 						"claude-3-7-sonnet-latest",
 						"Claude 3.7 Sonnet (latest)",
 					)
@@ -76,6 +84,10 @@ export class CAOSettingTab extends PluginSettingTab {
 						"Claude 3 Sonnet (20240229)",
 					)
 					.addOption(
+						"claude-3-5-haiku-latest",
+						"Claude 3.5 Haiku (latest)",
+					)
+					.addOption(
 						"claude-3-haiku-latest",
 						"Claude 3 Haiku (latest)",
 					)
@@ -83,7 +95,18 @@ export class CAOSettingTab extends PluginSettingTab {
 						"claude-3-haiku-20240307",
 						"Claude 3 Haiku (20240307)",
 					)
-					.addOption("claude-3-opus-latest", "Claude 3 Opus (latest)")
+					.addOption(
+						"claude-opus-4-1", 
+						"Claude 4.1 Opus (latest)"
+					)
+					.addOption(
+						"claude-opus-4-0", 
+						"Claude 4 Opus (latest)"
+					)
+					.addOption(
+						"claude-3-opus-latest", 
+						"Claude 3 Opus (latest)"
+					)
 					.setValue(this.plugin.settings.model)
 					.onChange(async (value) => {
 						this.plugin.settings.model = value;
