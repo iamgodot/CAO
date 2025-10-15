@@ -90,14 +90,9 @@ export class CAOSettingTab extends PluginSettingTab {
 						"Claude 3.5 Haiku (latest)",
 					)
 					.addOption(
-						// Active	N/A	Not sooner than March 7, 2025
+						// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
 						"claude-3-haiku-latest",
 						"Claude 3 Haiku (latest)",
-					)
-					.addOption(
-						// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
-						"claude-3-haiku-20240307",
-						"Claude 3 Haiku (20240307)",
 					)
 					.addOption(
 						"claude-opus-4-1", 
