@@ -1,3 +1,6 @@
+// Model aliases: https://docs.claude.com/en/docs/about-claude/models/overview#model-aliases (last check: 2025_10_15)
+// Retired-Dates: https://docs.claude.com/en/docs/about-claude/model-deprecations#model-status (last check: 2025_10_15)
+
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import { CAOSettings } from "./types";
 import CAO from "./main";
@@ -72,26 +75,27 @@ export class CAOSettingTab extends PluginSettingTab {
 						"Claude 3.7 Sonnet (latest)",
 					)
 					.addOption(
+						// Deprecated,	Tentative Retirement Date: October 22, 2025
 						"claude-3-5-sonnet-latest",
 						"Claude 3.5 Sonnet v2 (latest)",
 					)
 					.addOption(
+						// Deprecated,	Tentative Retirement Date: October 22, 2025
 						"claude-3-5-sonnet-20240620",
 						"Claude 3.5 Sonnet (20240620)",
 					)
 					.addOption(
-						"claude-3-sonnet-20240229",
-						"Claude 3 Sonnet (20240229)",
-					)
-					.addOption(
+						// Active,	Tentative Retirement Date: Not sooner than October 22, 2025
 						"claude-3-5-haiku-latest",
 						"Claude 3.5 Haiku (latest)",
 					)
 					.addOption(
+						// Active	N/A	Not sooner than March 7, 2025
 						"claude-3-haiku-latest",
 						"Claude 3 Haiku (latest)",
 					)
 					.addOption(
+						// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
 						"claude-3-haiku-20240307",
 						"Claude 3 Haiku (20240307)",
 					)
@@ -104,6 +108,7 @@ export class CAOSettingTab extends PluginSettingTab {
 						"Claude 4 Opus (latest)"
 					)
 					.addOption(
+						// Deprecated,	Tentative Retirement Date: January 5, 2026
 						"claude-3-opus-latest", 
 						"Claude 3 Opus (latest)"
 					)
