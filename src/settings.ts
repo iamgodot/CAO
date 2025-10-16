@@ -1,3 +1,6 @@
+// Model aliases: https://docs.claude.com/en/docs/about-claude/models/overview#model-aliases (last check: 2025_10_15)
+// Retired-Dates: https://docs.claude.com/en/docs/about-claude/model-deprecations#model-status (last check: 2025_10_15)
+
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import { CAOSettings } from "./types";
 import CAO from "./main";
@@ -5,7 +8,7 @@ import CAO from "./main";
 export const DEFAULT_SETTINGS: CAOSettings = {
 	apiKey: "",
 	maxTokens: 1024,
-	model: "claude-3-7-sonnet-latest",
+	model: "claude-sonnet-4-5",
 	systemPrompt: "You are a helpful AI assistant",
 	temperature: 1.0,
 	chatFolderPath: "CAO/history",
@@ -60,30 +63,50 @@ export class CAOSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption(
+						"claude-sonnet-4-5",
+						"Claude 4.5 Sonnet (latest)",
+					)
+					.addOption(
+						"claude-sonnet-4-0",
+						"Claude 4.0 Sonnet  (latest)",
+					)
+					.addOption(
 						"claude-3-7-sonnet-latest",
 						"Claude 3.7 Sonnet (latest)",
 					)
 					.addOption(
+						// Deprecated,	Tentative Retirement Date: October 22, 2025
 						"claude-3-5-sonnet-latest",
 						"Claude 3.5 Sonnet v2 (latest)",
 					)
 					.addOption(
+						// Deprecated,	Tentative Retirement Date: October 22, 2025
 						"claude-3-5-sonnet-20240620",
 						"Claude 3.5 Sonnet (20240620)",
 					)
 					.addOption(
-						"claude-3-sonnet-20240229",
-						"Claude 3 Sonnet (20240229)",
+						// Active,	Tentative Retirement Date: Not sooner than October 22, 2025
+						"claude-3-5-haiku-latest",
+						"Claude 3.5 Haiku (latest)",
 					)
 					.addOption(
+						// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
 						"claude-3-haiku-latest",
 						"Claude 3 Haiku (latest)",
 					)
 					.addOption(
-						"claude-3-haiku-20240307",
-						"Claude 3 Haiku (20240307)",
+						"claude-opus-4-1", 
+						"Claude 4.1 Opus (latest)"
 					)
-					.addOption("claude-3-opus-latest", "Claude 3 Opus (latest)")
+					.addOption(
+						"claude-opus-4-0", 
+						"Claude 4 Opus (latest)"
+					)
+					.addOption(
+						// Deprecated,	Tentative Retirement Date: January 5, 2026
+						"claude-3-opus-latest", 
+						"Claude 3 Opus (latest)"
+					)
 					.setValue(this.plugin.settings.model)
 					.onChange(async (value) => {
 						this.plugin.settings.model = value;
