@@ -75,21 +75,6 @@ export class CAOSettingTab extends PluginSettingTab {
 						"Claude 3.7 Sonnet (latest)",
 					)
 					.addOption(
-						// Deprecated,	Tentative Retirement Date: October 22, 2025
-						"claude-3-5-sonnet-latest",
-						"Claude 3.5 Sonnet v2 (latest)",
-					)
-					.addOption(
-						// Deprecated,	Tentative Retirement Date: October 22, 2025
-						"claude-3-5-sonnet-20240620",
-						"Claude 3.5 Sonnet (20240620)",
-					)
-					.addOption(
-						// Active,	Tentative Retirement Date: Not sooner than October 22, 2025
-						"claude-3-5-haiku-latest",
-						"Claude 3.5 Haiku (latest)",
-					)
-					.addOption(
 						// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
 						"claude-3-haiku-latest",
 						"Claude 3 Haiku (latest)",
