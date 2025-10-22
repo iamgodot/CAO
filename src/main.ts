@@ -351,11 +351,26 @@ export default class CAO extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData(),
-		);
+		const data = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+
+		let needsSave = false;
+
+		// Migration from v1.3.1 to v1.4.0: transfer old settings to new structure
+		if (data?.apiKey && !data?.anthropicApiKey) {
+			this.settings.anthropicApiKey = data.apiKey;
+			this.settings.provider = "anthropic";
+			needsSave = true;
+		}
+		if (data?.model && !data?.anthropicModel) {
+			this.settings.anthropicModel = data.model;
+			needsSave = true;
+		}
+
+		// Save migrated settings
+		if (needsSave) {
+			await this.saveSettings();
+		}
 	}
 
 	async saveSettings() {
