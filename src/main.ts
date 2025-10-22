@@ -91,9 +91,10 @@ export default class CAO extends Plugin {
 			id: "get-response",
 			name: "Get response",
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				const currentApiKey = this.settings.provider === "anthropic"
-					? this.settings.anthropicApiKey
-					: this.settings.openaiApiKey;
+				const currentApiKey =
+					this.settings.provider === "anthropic"
+						? this.settings.anthropicApiKey
+						: this.settings.openaiApiKey;
 
 				if (!currentApiKey) {
 					new Notice("Please set your API key first.");
@@ -117,9 +118,10 @@ export default class CAO extends Plugin {
 				}
 
 				// Get base settings from plugin or frontmatter
-				let model = this.settings.provider === "anthropic"
-					? this.settings.anthropicModel
-					: this.settings.openaiModel;
+				let model =
+					this.settings.provider === "anthropic"
+						? this.settings.anthropicModel
+						: this.settings.openaiModel;
 				let maxTokens = this.settings.maxTokens;
 				let temperature = this.settings.temperature;
 				let systemPrompt = this.settings.systemPrompt;
@@ -163,86 +165,150 @@ export default class CAO extends Plugin {
 						messages: msgs,
 					};
 
-					if (this.settings.streamingResponse) {
-						interval = 0;
-						await streamText(editor, "\n\n### CAO\n", interval);
-						const stream = this.anthropic!.messages.stream(chatOptions);
-						for await (const event of stream) {
-							if (event.type === "content_block_delta") {
-								await streamText(
-									editor,
-									event.delta.text,
-									interval,
+					try {
+						if (this.settings.streamingResponse) {
+							interval = 0;
+							await streamText(editor, "\n\n### CAO\n", interval);
+							const stream =
+								this.anthropic!.messages.stream(chatOptions);
+							for await (const event of stream) {
+								if (event.type === "content_block_delta") {
+									await streamText(
+										editor,
+										event.delta.text,
+										interval,
+									);
+								}
+								if (event.type === "message_delta") {
+									tokenCount =
+										event.usage?.output_tokens || 0;
+								}
+							}
+						} else {
+							interval = 50;
+							const response =
+								await this.anthropic!.messages.create(
+									chatOptions,
 								);
-							}
-							if (event.type === "message_delta") {
-								tokenCount = event.usage?.output_tokens || 0;
-							}
-						}
-					} else {
-						interval = 50;
-						const response =
-							await this.anthropic!.messages.create(chatOptions);
 
-						if (!response || !response.content) {
-							new Notice("No response received, try again later");
-						}
+							if (!response || !response.content) {
+								new Notice(
+									"No response received, try again later",
+								);
+								return;
+							}
 
-						tokenCount = response.usage?.output_tokens || 0;
-						const generatedText =
-							`\n\n### CAO\n` +
-							response.content
-								.map((item: TextBlock) => item.text)
-								.join("");
-						await streamText(editor, generatedText, interval);
+							tokenCount = response.usage?.output_tokens || 0;
+							const generatedText =
+								`\n\n### CAO\n` +
+								response.content
+									.map((item: TextBlock) => item.text)
+									.join("");
+							await streamText(editor, generatedText, interval);
+						}
+					} catch (error: any) {
+						let errorMessage =
+							"Failed to get response from Anthropic: ";
+						if (error.status === 401) {
+							errorMessage +=
+								"Invalid API key. Please check your Anthropic API key in settings.";
+						} else if (error.status === 404) {
+							errorMessage += `Model "${model}" not found. Please verify the model name in settings.`;
+						} else if (error.status === 429) {
+							errorMessage +=
+								"Rate limit exceeded. Please try again later.";
+						} else if (error.message) {
+							errorMessage += error.message;
+						} else {
+							errorMessage += "Unknown error occurred.";
+						}
+						new Notice(errorMessage, 8000);
+						console.error("Anthropic API error:", error);
+						return;
 					}
 				} else {
 					// OpenAI SDK
 					const msgs: OpenAI.Chat.ChatCompletionMessageParam[] = [
 						{ role: "system", content: systemPrompt },
 						...messages.map((m) => ({
-							role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+							role:
+								m.role === "user"
+									? ("user" as const)
+									: ("assistant" as const),
 							content: m.content,
 						})),
 					];
 
-					const chatOptions: OpenAI.Chat.ChatCompletionCreateParams = {
-						model,
-						max_tokens: maxTokens,
-						temperature,
-						messages: msgs,
-					};
+					const chatOptions: OpenAI.Chat.ChatCompletionCreateParams =
+						{
+							model,
+							max_tokens: maxTokens,
+							temperature,
+							messages: msgs,
+						};
 
-					if (this.settings.streamingResponse) {
-						interval = 0;
-						await streamText(editor, "\n\n### CAO\n", interval);
-						const stream = await this.openai!.chat.completions.create({
-							...chatOptions,
-							stream: true,
-						});
-						for await (const chunk of stream) {
-							const content = chunk.choices[0]?.delta?.content;
-							if (content) {
-								await streamText(editor, content, interval);
+					try {
+						if (this.settings.streamingResponse) {
+							interval = 0;
+							await streamText(editor, "\n\n### CAO\n", interval);
+							const stream =
+								await this.openai!.chat.completions.create({
+									...chatOptions,
+									stream: true,
+								});
+							for await (const chunk of stream) {
+								const content =
+									chunk.choices[0]?.delta?.content;
+								if (content) {
+									await streamText(editor, content, interval);
+								}
+								if (chunk.usage) {
+									tokenCount =
+										chunk.usage.completion_tokens || 0;
+								}
 							}
-							if (chunk.usage) {
-								tokenCount = chunk.usage.completion_tokens || 0;
+						} else {
+							interval = 50;
+							const response =
+								await this.openai!.chat.completions.create(
+									chatOptions,
+								);
+
+							if (
+								!response ||
+								!response.choices ||
+								response.choices.length === 0
+							) {
+								new Notice(
+									"No response received, try again later",
+								);
+								return;
 							}
-						}
-					} else {
-						interval = 50;
-						const response = await this.openai!.chat.completions.create(chatOptions);
 
-						if (!response || !response.choices || response.choices.length === 0) {
-							new Notice("No response received, try again later");
-							return;
+							tokenCount = response.usage?.completion_tokens || 0;
+							const generatedText =
+								`\n\n### CAO\n` +
+								response.choices[0].message.content;
+							await streamText(editor, generatedText, interval);
 						}
-
-						tokenCount = response.usage?.completion_tokens || 0;
-						const generatedText =
-							`\n\n### CAO\n` +
-							response.choices[0].message.content;
-						await streamText(editor, generatedText, interval);
+					} catch (error: any) {
+						let errorMessage = "Failed to get response: ";
+						if (error.status === 401) {
+							errorMessage +=
+								"Invalid API key. Please check your provider API key in settings.";
+						} else if (error.status === 404) {
+							errorMessage += `Model "${model}" not found. Please verify the base URL or the model name in settings.`;
+						} else if (error.status === 429) {
+							errorMessage +=
+								"Rate limit exceeded. Please try again later.";
+						} else if (error.message) {
+							errorMessage += error.message;
+						} else {
+							errorMessage += "Unknown error occurred.";
+						}
+						new Notice(errorMessage, 8000);
+						console.error("OpenAI-compatible API error:", error);
+						return;
 					}
 				}
 				if (this.settings.showStats) {
@@ -269,9 +335,10 @@ export default class CAO extends Plugin {
 				await this.app.fileManager.processFrontMatter(
 					currentFile,
 					(frontmatter) => {
-						const model = this.settings.provider === "anthropic"
-							? this.settings.anthropicModel
-							: this.settings.openaiModel;
+						const model =
+							this.settings.provider === "anthropic"
+								? this.settings.anthropicModel
+								: this.settings.openaiModel;
 						frontmatter["model"] = model;
 						frontmatter["max_tokens"] = this.settings.maxTokens;
 						frontmatter["temperature"] = this.settings.temperature;
