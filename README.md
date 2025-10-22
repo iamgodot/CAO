@@ -10,7 +10,7 @@ CAO allows you to chat with Claude directly in a note.
 2. [x] Manage chat histories as plain notes
 3. [x] Customize chat options in **front matter**
 4. [x] Use **wikilinks** for notes as chat context
-5. [ ] Integrate OpenRouter
+5. [x] Support custom API providers such as OpenRouter
 
 ## Installation
 
@@ -18,28 +18,50 @@ Search for CAO in Obsidian's community plugins page.
 
 ## Usage
 
-1. After installation, set your **Claude API key** in the settings
-2. Use the `Open new chat` command to create a new chat note
-3. Optionally, there's `Add/Reset chat options` for customization
-4. For replies, fire up `Get response`(you may want a hot key for this, such as **Cmd/Ctro + .**)
-5. Next time, use `Open last chat` to resume last conversation
+- Set up API providers
+  - You can choose to use official Anthropic APIs or OpenAI-compatible API providers such as OpenRouter
+  - For official Anthropic APIs, enter your API key and select a model from the dropdown menu
+  - For custom API providers, you need to also set the base URL(it defaults to `https://api.openai.com/v1` for OpenAI models)
+    - In this case, you need to manually enter the model name of which the format may vary depending on the provider
+- Config chat options
+  - You can designate a custom folder for chat histories
+  - You can also update max tokens, temperature and system prompt to suit your needs
+  - Toggle streaming response open for better performance and showing stats allows you to see token usage for each response
+- Try available commands
+  - Use `Open new chat` command to create a new chat note
+  - Optionally, there's `Add/Reset chat options` for customization
+  - For replies, fire up `Get response`(you may want a hot key for this, such as **Cmd/Ctrl + .**)
+  - Next time, use `Open last chat` to resume last conversation
 
 Here're the available chat options with example values to set in the front matter:
 
 ```
 ---
-model: claude-3-7-sonnet-latest
+model: claude-sonnet-4-5
 max_tokens: 1024
 temperature: 1
 system_prompt: You are a helpful AI assistant
 ---
 ```
 
+### Custom API providers
+
+CAO supports OpenAI-compatible API providers. Here's an example for OpenRouter:
+
+- Base URL: `https://openrouter.ai/api/v1`
+- Model format: `anthropic/claude-sonnet-4.5` or `openai/gpt-4o`
+- Get your API key from [OpenRouter](https://openrouter.ai)
+
+Notes:
+
+- Using Claude models with custom API providers may have [limitations](https://docs.claude.com/en/api/openai-sdk#important-openai-compatibility-limitations).
+- It's possible to use non-Claude models now, but be aware it is experimental and not fully tested.
+
 ## Supported Models
 
-CAO supports all the Claude models, take a look at [here](https://docs.anthropic.com/en/docs/about-claude/models/all-models) for more details.
+CAO supports all Claude models, take a look at [here](https://docs.claude.com/en/docs/about-claude/model-deprecations#model-status) for more details.
 
-**You can choose common models in the settings, for anything else, specify it in the front matter.**
+**You can either choose an active model in the dropdown menu, or specify an old one in the front matter as illustrated above.**
 
 ## Contributing
 
