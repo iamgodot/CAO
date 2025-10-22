@@ -23,6 +23,7 @@
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.33.1",
-		"date-fns": "^4.1.0"
+		"date-fns": "^4.1.0",
+		"openai": "^4.80.0"
 	}
 }

@@ -6,9 +6,13 @@ import { CAOSettings } from "./types";
 import CAO from "./main";
 
 export const DEFAULT_SETTINGS: CAOSettings = {
-	apiKey: "",
+	provider: "anthropic",
+	anthropicApiKey: "",
+	openaiApiKey: "",
+	baseURL: "",
 	maxTokens: 1024,
-	model: "claude-sonnet-4-5",
+	anthropicModel: "claude-sonnet-4-5",
+	openaiModel: "gpt-4o",
 	systemPrompt: "You are a helpful AI assistant",
 	temperature: 1.0,
 	chatFolderPath: "CAO/history",
@@ -45,74 +49,142 @@ export class CAOSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
 		new Setting(containerEl)
-			.setName("API key")
-			.setDesc("Enter your Anthropic API key")
+			.setName("API Provider")
+			.setDesc(
+				"Choose between Anthropic (official) or OpenAI-compatible APIs",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("anthropic", "Anthropic (Official)")
+					.addOption("openai-compatible", "OpenAI Compatible")
+					.setValue(this.plugin.settings.provider)
+					.onChange(
+						async (value: "anthropic" | "openai-compatible") => {
+							this.plugin.settings.provider = value;
+							await this.plugin.saveSettings();
+							this.display(); // Refresh UI to show/hide fields
+						},
+					),
+			);
+
+		// API Key field - dynamic based on provider
+		const isAnthropic = this.plugin.settings.provider === "anthropic";
+		new Setting(containerEl)
+			.setName(isAnthropic ? "Anthropic API Key" : "Provider API Key")
+			.setDesc(
+				isAnthropic
+					? "Enter your Anthropic API key"
+					: "Enter your provider's API key (OpenAI, OpenRouter, etc.)",
+			)
 			.addText((text) =>
 				text
 					.setPlaceholder("Enter your API key")
-					.setValue(this.plugin.settings.apiKey)
+					.setValue(
+						isAnthropic
+							? this.plugin.settings.anthropicApiKey
+							: this.plugin.settings.openaiApiKey,
+					)
 					.onChange(async (value) => {
-						this.plugin.settings.apiKey = value;
+						if (isAnthropic) {
+							this.plugin.settings.anthropicApiKey = value;
+						} else {
+							this.plugin.settings.openaiApiKey = value;
+						}
 						await this.plugin.saveSettings();
 					}),
 			);
-		new Setting(containerEl)
-			.setName("Model")
-			.setDesc("Claude model to use")
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption(
-						"claude-sonnet-4-5",
-						"Claude 4.5 Sonnet (latest)",
-					)
-					.addOption(
-						"claude-sonnet-4-0",
-						"Claude 4.0 Sonnet  (latest)",
-					)
-					.addOption(
-						"claude-3-7-sonnet-latest",
-						"Claude 3.7 Sonnet (latest)",
-					)
-					.addOption(
-						// Deprecated,	Tentative Retirement Date: October 22, 2025
-						"claude-3-5-sonnet-latest",
-						"Claude 3.5 Sonnet v2 (latest)",
-					)
-					.addOption(
-						// Deprecated,	Tentative Retirement Date: October 22, 2025
-						"claude-3-5-sonnet-20240620",
-						"Claude 3.5 Sonnet (20240620)",
-					)
-					.addOption(
-						// Active,	Tentative Retirement Date: Not sooner than October 22, 2025
-						"claude-3-5-haiku-latest",
-						"Claude 3.5 Haiku (latest)",
-					)
-					.addOption(
-						// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
-						"claude-3-haiku-latest",
-						"Claude 3 Haiku (latest)",
-					)
-					.addOption(
-						"claude-opus-4-1", 
-						"Claude 4.1 Opus (latest)"
-					)
-					.addOption(
-						"claude-opus-4-0", 
-						"Claude 4 Opus (latest)"
-					)
-					.addOption(
-						// Deprecated,	Tentative Retirement Date: January 5, 2026
-						"claude-3-opus-latest", 
-						"Claude 3 Opus (latest)"
-					)
-					.setValue(this.plugin.settings.model)
-					.onChange(async (value) => {
-						this.plugin.settings.model = value;
-						await this.plugin.saveSettings();
-					}),
-			);
+
+		// Base URL - only show for OpenAI Compatible
+		if (!isAnthropic) {
+			new Setting(containerEl)
+				.setName("Base URL")
+				.setDesc(
+					"Custom API endpoint (leave empty for default: https://api.openai.com/v1)",
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("https://api.openai.com/v1")
+						.setValue(this.plugin.settings.baseURL)
+						.onChange(async (value) => {
+							this.plugin.settings.baseURL = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
+
+		// Model selection - different UI based on provider
+		if (isAnthropic) {
+			new Setting(containerEl)
+				.setName("Model")
+				.setDesc("Claude model to use")
+				.addDropdown((dropdown) =>
+					dropdown
+						.addOption(
+							"claude-sonnet-4-5",
+							"Claude 4.5 Sonnet (latest)",
+						)
+						.addOption(
+							"claude-sonnet-4-0",
+							"Claude 4.0 Sonnet  (latest)",
+						)
+						.addOption(
+							"claude-3-7-sonnet-latest",
+							"Claude 3.7 Sonnet (latest)",
+						)
+						.addOption(
+							// Deprecated,	Tentative Retirement Date: October 22, 2025
+							"claude-3-5-sonnet-latest",
+							"Claude 3.5 Sonnet v2 (latest)",
+						)
+						.addOption(
+							// Deprecated,	Tentative Retirement Date: October 22, 2025
+							"claude-3-5-sonnet-20240620",
+							"Claude 3.5 Sonnet (20240620)",
+						)
+						.addOption(
+							// Active,	Tentative Retirement Date: Not sooner than October 22, 2025
+							"claude-3-5-haiku-latest",
+							"Claude 3.5 Haiku (latest)",
+						)
+						.addOption(
+							// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
+							"claude-3-haiku-latest",
+							"Claude 3 Haiku (latest)",
+						)
+						.addOption(
+							"claude-opus-4-1",
+							"Claude 4.1 Opus (latest)",
+						)
+						.addOption("claude-opus-4-0", "Claude 4 Opus (latest)")
+						.addOption(
+							// Deprecated,	Tentative Retirement Date: January 5, 2026
+							"claude-3-opus-latest",
+							"Claude 3 Opus (latest)",
+						)
+						.setValue(this.plugin.settings.anthropicModel)
+						.onChange(async (value) => {
+							this.plugin.settings.anthropicModel = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		} else {
+			new Setting(containerEl)
+				.setName("Model")
+				.setDesc(
+					"Model to use (e.g., gpt-4o for OpenAI, anthropic/claude-haiku-4.5 for OpenRouter, or provider-specific model names)",
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("gpt-4o")
+						.setValue(this.plugin.settings.openaiModel)
+						.onChange(async (value) => {
+							this.plugin.settings.openaiModel = value;
+							await this.plugin.saveSettings();
+						}),
+				);
+		}
 		new Setting(containerEl)
 			.setName("Max tokens")
 			.setDesc("Maximum number of tokens in response")

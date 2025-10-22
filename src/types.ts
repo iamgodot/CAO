@@ -1,7 +1,11 @@
 export interface CAOSettings {
-	apiKey: string;
+	provider: "anthropic" | "openai-compatible";
+	anthropicApiKey: string;
+	openaiApiKey: string;
+	baseURL: string;
 	maxTokens: number;
-	model: string;
+	anthropicModel: string;
+	openaiModel: string;
 	systemPrompt: string;
 	temperature: number;
 	chatFolderPath: string;
