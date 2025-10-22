@@ -1,7 +1,7 @@
 {
 	"id": "cao",
 	"name": "CAO",
-	"version": "1.4.0",
+	"version": "1.4.1",
 	"minAppVersion": "0.15.0",
 	"description": "Integrate Claude AI for chatting in notes.",
 	"author": "Godot",
