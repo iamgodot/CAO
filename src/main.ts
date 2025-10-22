@@ -153,7 +153,7 @@ export default class CAO extends Plugin {
 				if (this.settings.provider === "anthropic") {
 					// Anthropic SDK
 					const msgs = messages.map((m) => ({
-						role: m.role === "user" ? "user" : "assistant",
+						role: m.role === "user" ? ("user" as const) : ("assistant" as const),
 						content: m.content,
 					}));
 
@@ -172,7 +172,7 @@ export default class CAO extends Plugin {
 							const stream =
 								this.anthropic!.messages.stream(chatOptions);
 							for await (const event of stream) {
-								if (event.type === "content_block_delta") {
+								if (event.type === "content_block_delta" && "text" in event.delta) {
 									await streamText(
 										editor,
 										event.delta.text,
