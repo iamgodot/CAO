@@ -127,29 +127,21 @@ export class CAOSettingTab extends PluginSettingTab {
 						)
 						.addOption(
 							"claude-sonnet-4-0",
-							"Claude 4.0 Sonnet  (latest)",
+							"Claude 4.0 Sonnet (latest)",
 						)
 						.addOption(
 							"claude-3-7-sonnet-latest",
 							"Claude 3.7 Sonnet (latest)",
 						)
 						.addOption(
-							// Deprecated,	Tentative Retirement Date: October 22, 2025
-							"claude-3-5-sonnet-latest",
-							"Claude 3.5 Sonnet v2 (latest)",
+							"claude-haiku-4-5",
+							"Claude 4.5 Haiku (latest)",
 						)
 						.addOption(
-							// Deprecated,	Tentative Retirement Date: October 22, 2025
-							"claude-3-5-sonnet-20240620",
-							"Claude 3.5 Sonnet (20240620)",
-						)
-						.addOption(
-							// Active,	Tentative Retirement Date: Not sooner than October 22, 2025
 							"claude-3-5-haiku-latest",
 							"Claude 3.5 Haiku (latest)",
 						)
 						.addOption(
-							// Active,	Tentative Retirement Date: Not sooner than March 7, 2025
 							"claude-3-haiku-latest",
 							"Claude 3 Haiku (latest)",
 						)
@@ -157,11 +149,9 @@ export class CAOSettingTab extends PluginSettingTab {
 							"claude-opus-4-1",
 							"Claude 4.1 Opus (latest)",
 						)
-						.addOption("claude-opus-4-0", "Claude 4 Opus (latest)")
 						.addOption(
-							// Deprecated,	Tentative Retirement Date: January 5, 2026
-							"claude-3-opus-latest",
-							"Claude 3 Opus (latest)",
+							"claude-opus-4-0",
+							"Claude 4.0 Opus (latest)",
 						)
 						.setValue(this.plugin.settings.anthropicModel)
 						.onChange(async (value) => {
