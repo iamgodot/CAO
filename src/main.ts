@@ -1,17 +1,19 @@
-import { Editor, MarkdownView, Plugin, Notice } from "obsidian";
+import { Editor, EditorPosition, MarkdownView, Plugin, Notice } from "obsidian";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { format } from "date-fns";
 import { CAOSettingTab, DEFAULT_SETTINGS } from "./settings";
-import { CAOSettings } from "./types";
+import { CAOSettings, PromptTemplate } from "./types";
 import { parseChat, setCursorToEnd, streamText } from "./utils";
 import { TextBlock } from "@anthropic-ai/sdk/resources";
+import { ChatSelectionModal } from "./chat-selection-modal";
 
 export default class CAO extends Plugin {
 	settings: CAOSettings;
 
 	private anthropic: Anthropic | null = null;
 	private openai: OpenAI | null = null;
+	private promptCommands: Set<string> = new Set();
 
 	private initializeAnthropicClient() {
 		if (this.settings.provider === "anthropic") {
@@ -75,8 +77,7 @@ export default class CAO extends Plugin {
 				}
 				const files = this.app.vault
 					.getMarkdownFiles()
-					.filter((file) => file.path.startsWith(folderPath))
-					.filter((file) => file.basename.startsWith("Chat "))
+					.filter((file) => file.path.startsWith(folderPath + "/"))
 					.sort((a, b) => b.stat.mtime - a.stat.mtime);
 				if (files.length === 0) {
 					new Notice("No chats yet");
@@ -84,6 +85,28 @@ export default class CAO extends Plugin {
 				}
 				const leaf = this.app.workspace.getLeaf(false);
 				await leaf.openFile(files[0]);
+			},
+		});
+
+		this.addCommand({
+			id: "select-chat",
+			name: "Select chat",
+			callback: async () => {
+				const folderPath = this.settings.chatFolderPath;
+				if (!(await this.app.vault.adapter.exists(folderPath))) {
+					new Notice("CAO folder not found");
+					return;
+				}
+
+				const modal = new ChatSelectionModal(
+					this.app,
+					folderPath,
+					async (selectedFile) => {
+						const leaf = this.app.workspace.getLeaf(false);
+						await leaf.openFile(selectedFile);
+					}
+				);
+				modal.open();
 			},
 		});
 
@@ -153,7 +176,10 @@ export default class CAO extends Plugin {
 				if (this.settings.provider === "anthropic") {
 					// Anthropic SDK
 					const msgs = messages.map((m) => ({
-						role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+						role:
+							m.role === "user"
+								? ("user" as const)
+								: ("assistant" as const),
 						content: m.content,
 					}));
 
@@ -172,7 +198,10 @@ export default class CAO extends Plugin {
 							const stream =
 								this.anthropic!.messages.stream(chatOptions);
 							for await (const event of stream) {
-								if (event.type === "content_block_delta" && "text" in event.delta) {
+								if (
+									event.type === "content_block_delta" &&
+									"text" in event.delta
+								) {
 									await streamText(
 										editor,
 										event.delta.text,
@@ -348,6 +377,99 @@ export default class CAO extends Plugin {
 				);
 			},
 		});
+
+		// Initialize prompt commands - these work with native slash commands
+		this.registerPromptCommands(this.settings.customPrompts);
+	}
+
+
+	private registerPromptCommands(templates: PromptTemplate[]) {
+		templates.forEach((template) => {
+			this.addCommand({
+				id: template.name,
+				name: template.name,
+				editorCallback: (editor: Editor, view: MarkdownView) => {
+					this.insertTemplate(editor, template);
+				},
+			});
+
+			this.promptCommands.add(template.name);
+		});
+	}
+
+	private updatePromptCommands(templates: PromptTemplate[]) {
+		// Remove commands that no longer exist
+		const newNames = new Set(templates.map((t) => t.name));
+
+		this.promptCommands.forEach((commandId) => {
+			if (!newNames.has(commandId)) {
+				this.removeCommand(commandId);
+				this.promptCommands.delete(commandId);
+			}
+		});
+
+		// Add new commands
+		templates.forEach((template) => {
+			if (!this.promptCommands.has(template.name)) {
+				this.addCommand({
+					id: template.name,
+					name: template.name,
+					editorCallback: (editor: Editor, view: MarkdownView) => {
+						this.insertTemplate(editor, template);
+					},
+				});
+
+				this.promptCommands.add(template.name);
+			}
+		});
+	}
+
+	private insertTemplate(editor: Editor, template: PromptTemplate) {
+		const cursorPos = editor.getCursor();
+		const templateText = template.template;
+
+		// Handle cursor positioning
+		this.positionCursorInTemplate(editor, cursorPos, templateText);
+	}
+
+	private positionCursorInTemplate(
+		editor: Editor,
+		insertPos: EditorPosition,
+		templateText: string,
+	) {
+		const cursorPlaceholder = "{cursor}";
+		const placeholderIndex = templateText.indexOf(cursorPlaceholder);
+
+		if (placeholderIndex !== -1) {
+			// Calculate cursor position relative to insert point
+			const beforeCursor = templateText.substring(0, placeholderIndex);
+			const lines = beforeCursor.split("\n");
+
+			const finalLine = insertPos.line + lines.length - 1;
+			const finalCh =
+				lines.length === 1
+					? insertPos.ch + lines[0].length
+					: lines[lines.length - 1].length;
+
+			// Insert template without placeholder
+			const cleanTemplate = templateText.replace(cursorPlaceholder, "");
+			editor.replaceRange(cleanTemplate, insertPos);
+
+			// Position cursor
+			editor.setCursor(finalLine, finalCh);
+		} else {
+			// No cursor placeholder, insert template and position at end
+			editor.replaceRange(templateText, insertPos);
+
+			const lines = templateText.split("\n");
+			const finalLine = insertPos.line + lines.length - 1;
+			const finalCh =
+				lines.length === 1
+					? insertPos.ch + lines[0].length
+					: lines[lines.length - 1].length;
+
+			editor.setCursor(finalLine, finalCh);
+		}
 	}
 
 	async loadSettings() {
@@ -376,5 +498,8 @@ export default class CAO extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 		this.initializeAnthropicClient();
+
+		// Update prompt commands with new templates
+		this.updatePromptCommands(this.settings.customPrompts);
 	}
 }
