@@ -178,3 +178,63 @@ export async function streamText(
 		editor.scrollIntoView({ from: pos, to: pos }, true);
 	}
 }
+
+// Template processing utilities
+export function validateTemplateName(name: string): { valid: boolean; error?: string } {
+	if (!name.trim()) {
+		return { valid: false, error: "Template name cannot be empty" };
+	}
+
+	// Allow alphanumeric characters, spaces, hyphens, and apostrophes
+	if (!/^[a-zA-Z0-9\s\-']+$/.test(name)) {
+		return { valid: false, error: "Template name can only contain letters, numbers, spaces, hyphens, and apostrophes" };
+	}
+
+	if (name.length > 20) {
+		return { valid: false, error: "Template name must be 20 characters or less" };
+	}
+
+	return { valid: true };
+}
+
+export function processTemplateContent(template: string): {
+	processedContent: string;
+	cursorPosition?: { line: number; ch: number };
+} {
+	const cursorPlaceholder = "{cursor}";
+	const cursorIndex = template.indexOf(cursorPlaceholder);
+
+	if (cursorIndex === -1) {
+		return { processedContent: template };
+	}
+
+	// Calculate cursor position
+	const beforeCursor = template.substring(0, cursorIndex);
+	const lines = beforeCursor.split('\n');
+	const line = lines.length - 1;
+	const ch = lines[lines.length - 1].length;
+
+	// Remove cursor placeholder
+	const processedContent = template.replace(cursorPlaceholder, "");
+
+	return {
+		processedContent,
+		cursorPosition: { line, ch }
+	};
+}
+
+export function previewTemplate(template: string): string {
+	// Replace cursor placeholder with a visual indicator for preview
+	return template.replace("{cursor}", "[CURSOR]");
+}
+
+export function sanitizeTemplateName(input: string): string {
+	// Convert to lowercase, remove invalid characters, replace spaces with hyphens
+	return input
+		.toLowerCase()
+		.replace(/[^a-z0-9\s-]/g, "")
+		.replace(/\s+/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "")
+		.substring(0, 20);
+}

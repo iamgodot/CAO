@@ -1,8 +1,8 @@
 // Model aliases: https://docs.claude.com/en/docs/about-claude/models/overview#model-aliases (last check: 2025_10_15)
 // Retired-Dates: https://docs.claude.com/en/docs/about-claude/model-deprecations#model-status (last check: 2025_10_15)
 
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
-import { CAOSettings } from "./types";
+import { App, Modal, Notice, PluginSettingTab, Setting } from "obsidian";
+import { CAOSettings, PromptTemplate } from "./types";
 import CAO from "./main";
 
 export const DEFAULT_SETTINGS: CAOSettings = {
@@ -18,6 +18,20 @@ export const DEFAULT_SETTINGS: CAOSettings = {
 	chatFolderPath: "CAO/history",
 	streamingResponse: true,
 	showStats: true,
+	customPrompts: [
+		{
+			name: "Summarize",
+			template: "Please provide a comprehensive summary of the following content. Include the main points, key takeaways, and important details:\n\n{cursor}"
+		},
+		{
+			name: "Rewrite",
+			template: "Please rewrite the following text to improve clarity, readability, and flow while maintaining the original meaning and tone:\n\n{cursor}"
+		},
+		{
+			name: "Explain like I'm 5",
+			template: "Please explain {cursor} in simple terms that a 5-year-old could understand. Use everyday examples and avoid complex terminology."
+		}
+	]
 };
 
 export class CAOSettingTab extends PluginSettingTab {
@@ -261,5 +275,198 @@ export class CAOSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+		// Custom Prompts Section
+		containerEl.createEl("h3", { text: "Custom Prompts" });
+		containerEl.createEl("p", {
+			text: "Create custom commands for quick prompt insertion. Use {cursor} to mark cursor position."
+		});
+
+		// Display existing templates
+		this.plugin.settings.customPrompts.forEach((template, index) => {
+			const setting = new Setting(containerEl)
+				.setName(template.name);
+
+			// Edit button
+			setting.addButton((button) =>
+				button
+					.setIcon("pencil")
+					.setTooltip("Edit")
+					.onClick(() => {
+						this.showTemplateEditor(template, index);
+					})
+			);
+
+			// Delete button
+			setting.addButton((button) =>
+				button
+					.setIcon("trash")
+					.setTooltip("Delete")
+					.setWarning()
+					.onClick(async () => {
+						this.plugin.settings.customPrompts.splice(index, 1);
+						await this.plugin.saveSettings();
+						this.display(); // Refresh UI
+					})
+			);
+		});
+
+		// Add new template button
+		new Setting(containerEl)
+			.addButton((button) =>
+				button
+					.setButtonText("Add Custom Prompt")
+					.setCta()
+					.onClick(() => {
+						this.showTemplateEditor();
+					})
+			);
+	}
+
+	showTemplateEditor(template?: PromptTemplate, index?: number) {
+		const isEditing = template !== undefined;
+		const currentTemplate: PromptTemplate = template || {
+			name: "",
+			template: ""
+		};
+
+		const modal = new TemplateEditorModal(
+			this.app,
+			currentTemplate,
+			async (updatedTemplate) => {
+				// Validate name uniqueness and command conflicts
+				const existingIndex = this.plugin.settings.customPrompts.findIndex(
+					t => t.name === updatedTemplate.name
+				);
+
+				if (!isEditing && existingIndex !== -1) {
+					new Notice("A template with this name already exists!");
+					return;
+				}
+
+				if (isEditing && existingIndex !== -1 && existingIndex !== index) {
+					new Notice("A template with this name already exists!");
+					return;
+				}
+
+				// Check if command name conflicts with existing Obsidian commands
+				// Note: We check this.app.commands.commands which contains all registered commands
+				if ((this.app as any).commands?.commands && (this.app as any).commands.commands[updatedTemplate.name]) {
+					if (!isEditing || (isEditing && index !== undefined && this.plugin.settings.customPrompts[index].name !== updatedTemplate.name)) {
+						new Notice("A command with this name already exists. Please choose a different name.");
+						return;
+					}
+				}
+
+				// Update or add template
+				if (isEditing && index !== undefined) {
+					this.plugin.settings.customPrompts[index] = updatedTemplate;
+				} else {
+					this.plugin.settings.customPrompts.push(updatedTemplate);
+				}
+
+				await this.plugin.saveSettings();
+				this.display(); // Refresh UI
+			}
+		);
+		modal.open();
+	}
+}
+
+class TemplateEditorModal extends Modal {
+	template: PromptTemplate;
+	onSave: (template: PromptTemplate) => void;
+
+	constructor(app: App, template: PromptTemplate, onSave: (template: PromptTemplate) => void) {
+		super(app);
+		this.template = { ...template };
+		this.onSave = onSave;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		// Title
+		contentEl.createEl("h2", { text: "Custom Prompt Template" });
+
+		// Command name section
+		const nameSection = contentEl.createEl("div");
+		nameSection.style.marginBottom = "20px";
+
+		nameSection.createEl("h3", { text: "Command Name" });
+		nameSection.createEl("p", {
+			text: "Name for the command (e.g., 'explain' creates 'explain' command)",
+			cls: "setting-item-description"
+		});
+
+		const nameInput = nameSection.createEl("input", {
+			type: "text"
+		});
+		nameInput.value = this.template.name; // Set value after creation
+		nameInput.style.width = "100%";
+		nameInput.style.padding = "8px";
+		nameInput.style.marginTop = "8px";
+		nameInput.addEventListener("input", (e) => {
+			const target = e.target as HTMLInputElement;
+			this.template.name = target.value;
+		});
+
+		// Template content section
+		const templateSection = contentEl.createEl("div");
+		templateSection.style.marginBottom = "20px";
+
+		templateSection.createEl("h3", { text: "Template Content" });
+		templateSection.createEl("p", {
+			text: "Template content. Use {cursor} to mark where cursor should be placed after insertion.",
+			cls: "setting-item-description"
+		});
+
+		const templateTextArea = templateSection.createEl("textarea", {
+			placeholder: "Please explain {cursor} in simple terms for beginners"
+		});
+		templateTextArea.value = this.template.template; // Set value after creation
+		templateTextArea.style.width = "100%";
+		templateTextArea.style.minHeight = "120px";
+		templateTextArea.style.padding = "8px";
+		templateTextArea.style.marginTop = "8px";
+		templateTextArea.style.fontFamily = "var(--font-monospace)";
+		templateTextArea.style.resize = "vertical";
+		templateTextArea.addEventListener("input", (e) => {
+			const target = e.target as HTMLTextAreaElement;
+			this.template.template = target.value;
+		});
+
+		// Buttons
+		const buttonContainer = contentEl.createEl("div", { cls: "modal-button-container" });
+		buttonContainer.style.display = "flex";
+		buttonContainer.style.justifyContent = "flex-end";
+		buttonContainer.style.gap = "8px";
+		buttonContainer.style.marginTop = "16px";
+
+		const saveButton = buttonContainer.createEl("button", { text: "Save" });
+		saveButton.classList.add("mod-cta");
+		saveButton.addEventListener("click", () => {
+			if (!this.template.name.trim()) {
+				new Notice("Template name is required!");
+				return;
+			}
+			if (!this.template.template.trim()) {
+				new Notice("Template content is required!");
+				return;
+			}
+			this.onSave(this.template);
+			this.close();
+		});
+
+		const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+		cancelButton.addEventListener("click", () => {
+			this.close();
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
 	}
 }

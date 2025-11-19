@@ -1,3 +1,8 @@
+export interface PromptTemplate {
+	name: string;     // Command name (e.g., "explain")
+	template: string; // Template content with optional {cursor} placeholder
+}
+
 export interface CAOSettings {
 	provider: "anthropic" | "openai-compatible";
 	anthropicApiKey: string;
@@ -11,6 +16,7 @@ export interface CAOSettings {
 	chatFolderPath: string;
 	streamingResponse: boolean;
 	showStats: boolean;
+	customPrompts: PromptTemplate[];
 }
 
 export interface ChatMessage {
