@@ -6,6 +6,7 @@ import { CAOSettingTab, DEFAULT_SETTINGS } from "./settings";
 import { CAOSettings, PromptTemplate } from "./types";
 import { parseChat, setCursorToEnd, streamText } from "./utils";
 import { TextBlock } from "@anthropic-ai/sdk/resources";
+import { ChatSelectionModal } from "./chat-selection-modal";
 
 export default class CAO extends Plugin {
 	settings: CAOSettings;
@@ -76,8 +77,7 @@ export default class CAO extends Plugin {
 				}
 				const files = this.app.vault
 					.getMarkdownFiles()
-					.filter((file) => file.path.startsWith(folderPath))
-					.filter((file) => file.basename.startsWith("Chat "))
+					.filter((file) => file.path.startsWith(folderPath + "/"))
 					.sort((a, b) => b.stat.mtime - a.stat.mtime);
 				if (files.length === 0) {
 					new Notice("No chats yet");
@@ -85,6 +85,28 @@ export default class CAO extends Plugin {
 				}
 				const leaf = this.app.workspace.getLeaf(false);
 				await leaf.openFile(files[0]);
+			},
+		});
+
+		this.addCommand({
+			id: "select-chat",
+			name: "Select chat",
+			callback: async () => {
+				const folderPath = this.settings.chatFolderPath;
+				if (!(await this.app.vault.adapter.exists(folderPath))) {
+					new Notice("CAO folder not found");
+					return;
+				}
+
+				const modal = new ChatSelectionModal(
+					this.app,
+					folderPath,
+					async (selectedFile) => {
+						const leaf = this.app.workspace.getLeaf(false);
+						await leaf.openFile(selectedFile);
+					}
+				);
+				modal.open();
 			},
 		});
 

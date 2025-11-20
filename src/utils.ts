@@ -238,3 +238,20 @@ export function sanitizeTemplateName(input: string): string {
 		.replace(/^-|-$/g, "")
 		.substring(0, 20);
 }
+
+// Chat file discovery utilities
+export function getChatFiles(app: App, chatFolderPath: string) {
+	return app.vault.getMarkdownFiles().filter(file =>
+		file.path.startsWith(chatFolderPath + "/") &&
+		file.extension === "md"
+	);
+}
+
+export function sortFilesByMtime<T extends { stat: { mtime: number } }>(files: T[]): T[] {
+	return files.sort((a, b) => b.stat.mtime - a.stat.mtime);
+}
+
+export function formatChatDisplayName(fileName: string): string {
+	// Remove .md extension and return clean display name
+	return fileName.replace(/\.md$/, "");
+}
