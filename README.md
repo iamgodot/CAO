@@ -11,6 +11,8 @@ CAO allows you to chat with Claude directly in a note.
 3. [x] Customize chat options in **front matter**
 4. [x] Use **wikilinks** for notes as chat context
 5. [x] Support custom API providers such as OpenRouter
+6. [x] Support custom prompts with templates
+7. [ ] Support image embedding in prompts
 
 ## Installation
 
@@ -31,7 +33,7 @@ Search for CAO in Obsidian's community plugins page.
   - Use `Open new chat` command to create a new chat note
   - Optionally, there's `Add/Reset chat options` for customization
   - For replies, fire up `Get response`(you may want a hot key for this, such as **Cmd/Ctrl + .**)
-  - Next time, use `Open last chat` to resume last conversation
+  - Next time, use `Open last chat` to resume last conversation or `Select chat` to select a history chat
 
 Here're the available chat options with example values to set in the front matter:
 
@@ -56,6 +58,12 @@ Notes:
 
 - Using Claude models with custom API providers may have [limitations](https://docs.claude.com/en/api/openai-sdk#important-openai-compatibility-limitations).
 - It's possible to use non-Claude models now, but be aware it is experimental and not fully tested.
+
+### Custom prompts
+
+Now you can add custom prompts in settings, which will become available in the command palette or as slash commands(if toggled on in core plugins).
+
+Additionally, you can use `{cursor}` in the prompt template as a placeholder of cursor for editing after the prompt is inserted.
 
 ## Supported Models
 
