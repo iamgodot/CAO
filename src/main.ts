@@ -4,7 +4,15 @@ import OpenAI from "openai";
 import { format } from "date-fns";
 import { CAOSettingTab, DEFAULT_SETTINGS } from "./settings";
 import { CAOSettings, PromptTemplate } from "./types";
-import { parseChat, setCursorToEnd, streamText } from "./utils";
+import {
+	setCursorToEnd,
+	streamText,
+	formatNewAISection,
+	formatNewUserSection,
+	processCalloutContent,
+	processStreamingCalloutContent,
+	validateChatBeforeResponse,
+} from "./utils";
 import { TextBlock } from "@anthropic-ai/sdk/resources";
 import { ChatSelectionModal } from "./chat-selection-modal";
 
@@ -55,7 +63,10 @@ export default class CAO extends Plugin {
 
 				const filePath = `${folderPath}/${filename}`;
 				// TODO: make constant
-				const file = await this.app.vault.create(filePath, "### Me\n");
+				const file = await this.app.vault.create(
+					filePath,
+					formatNewUserSection(this.settings.useCallouts, true),
+				);
 				const leaf = this.app.workspace.getLeaf(false);
 				await leaf.openFile(file);
 
@@ -104,7 +115,7 @@ export default class CAO extends Plugin {
 					async (selectedFile) => {
 						const leaf = this.app.workspace.getLeaf(false);
 						await leaf.openFile(selectedFile);
-					}
+					},
 				);
 				modal.open();
 			},
@@ -125,20 +136,19 @@ export default class CAO extends Plugin {
 				}
 
 				const currentText = editor.getValue();
-				const messages = await parseChat(this.app, currentText);
-				if (!messages || messages.length === 0) {
-					new Notice(
-						'Invalid chat format. Messages should alternate between "### Me" and "### CAO"',
-					);
-					return;
-				}
-				const emptyMessage = messages.find(
-					(msg) => !msg.content.trim(),
+
+				// Comprehensive chat validation
+				const validation = await validateChatBeforeResponse(
+					this.app,
+					currentText,
+					this.settings.useCallouts,
 				);
-				if (emptyMessage) {
-					new Notice("Messages are not allowed to be empty");
+				if (!validation.isValid) {
+					new Notice(validation.error!.message, 8000);
 					return;
 				}
+
+				const messages = validation.messages!;
 
 				// Get base settings from plugin or frontmatter
 				let model =
@@ -194,19 +204,40 @@ export default class CAO extends Plugin {
 					try {
 						if (this.settings.streamingResponse) {
 							interval = 0;
-							await streamText(editor, "\n\n### CAO\n", interval);
+							await streamText(
+								editor,
+								formatNewAISection(this.settings.useCallouts),
+								interval,
+							);
 							const stream =
 								this.anthropic!.messages.stream(chatOptions);
+							let isStartOfLine = true; // Track if we're at the start of a line for callout processing
 							for await (const event of stream) {
 								if (
 									event.type === "content_block_delta" &&
 									"text" in event.delta
 								) {
-									await streamText(
-										editor,
-										event.delta.text,
-										interval,
-									);
+									if (this.settings.useCallouts) {
+										const {
+											processedChunk,
+											newIsStartOfLine,
+										} = processStreamingCalloutContent(
+											event.delta.text,
+											isStartOfLine,
+										);
+										await streamText(
+											editor,
+											processedChunk,
+											interval,
+										);
+										isStartOfLine = newIsStartOfLine;
+									} else {
+										await streamText(
+											editor,
+											event.delta.text,
+											interval,
+										);
+									}
 								}
 								if (event.type === "message_delta") {
 									tokenCount =
@@ -228,11 +259,15 @@ export default class CAO extends Plugin {
 							}
 
 							tokenCount = response.usage?.output_tokens || 0;
+							const rawContent = response.content
+								.map((item: TextBlock) => item.text)
+								.join("");
+							const processedContent = this.settings.useCallouts
+								? processCalloutContent(rawContent)
+								: rawContent;
 							const generatedText =
-								`\n\n### CAO\n` +
-								response.content
-									.map((item: TextBlock) => item.text)
-									.join("");
+								formatNewAISection(this.settings.useCallouts) +
+								processedContent;
 							await streamText(editor, generatedText, interval);
 						}
 					} catch (error: any) {
@@ -279,17 +314,42 @@ export default class CAO extends Plugin {
 					try {
 						if (this.settings.streamingResponse) {
 							interval = 0;
-							await streamText(editor, "\n\n### CAO\n", interval);
+							await streamText(
+								editor,
+								formatNewAISection(this.settings.useCallouts),
+								interval,
+							);
 							const stream =
 								await this.openai!.chat.completions.create({
 									...chatOptions,
 									stream: true,
 								});
+							let isStartOfLine = true; // Track if we're at the start of a line for callout processing
 							for await (const chunk of stream) {
 								const content =
 									chunk.choices[0]?.delta?.content;
 								if (content) {
-									await streamText(editor, content, interval);
+									if (this.settings.useCallouts) {
+										const {
+											processedChunk,
+											newIsStartOfLine,
+										} = processStreamingCalloutContent(
+											content,
+											isStartOfLine,
+										);
+										await streamText(
+											editor,
+											processedChunk,
+											interval,
+										);
+										isStartOfLine = newIsStartOfLine;
+									} else {
+										await streamText(
+											editor,
+											content,
+											interval,
+										);
+									}
 								}
 								if (chunk.usage) {
 									tokenCount =
@@ -315,9 +375,14 @@ export default class CAO extends Plugin {
 							}
 
 							tokenCount = response.usage?.completion_tokens || 0;
-							const generatedText =
-								`\n\n### CAO\n` +
+							const rawContent =
 								response.choices[0].message.content;
+							const processedContent = this.settings.useCallouts
+								? processCalloutContent(rawContent)
+								: rawContent;
+							const generatedText =
+								formatNewAISection(this.settings.useCallouts) +
+								processedContent;
 							await streamText(editor, generatedText, interval);
 						}
 					} catch (error: any) {
@@ -341,13 +406,16 @@ export default class CAO extends Plugin {
 					}
 				}
 				if (this.settings.showStats) {
-					await streamText(
-						editor,
-						`\n(${tokenCount} tokens)`,
-						interval,
-					);
+					const tokenText = this.settings.useCallouts
+						? `\n> (${tokenCount} tokens)`
+						: `\n(${tokenCount} tokens)`;
+					await streamText(editor, tokenText, interval);
 				}
-				await streamText(editor, "\n\n### Me\n", interval);
+				await streamText(
+					editor,
+					formatNewUserSection(this.settings.useCallouts),
+					interval,
+				);
 				setCursorToEnd(editor);
 			},
 		});
@@ -381,7 +449,6 @@ export default class CAO extends Plugin {
 		// Initialize prompt commands - these work with native slash commands
 		this.registerPromptCommands(this.settings.customPrompts);
 	}
-
 
 	private registerPromptCommands(templates: PromptTemplate[]) {
 		templates.forEach((template) => {
