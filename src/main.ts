@@ -290,6 +290,7 @@ export default class CAO extends Plugin {
 							const stream = await this.openai!.chat.completions.create({
 								...chatOptions,
 								stream: true,
+								stream_options: { include_usage: true },
 							});
 							let isStartOfLine = true; // Track if we're at the start of a line for callout processing
 							for await (const chunk of stream) {
