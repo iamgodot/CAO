@@ -6,7 +6,7 @@ import { CAOSettingTab, DEFAULT_SETTINGS } from "./settings";
 import { CAOSettings, PromptTemplate } from "./types";
 import {
 	setCursorToEnd,
-	streamText,
+	renderText,
 	formatNewAISection,
 	formatNewUserSection,
 	processCalloutContent,
@@ -50,10 +50,7 @@ export default class CAO extends Plugin {
 			id: "open-new-chat",
 			name: "Open new chat",
 			callback: async () => {
-				const formattedDateTime = format(
-					new Date(),
-					"yyyy-MM-dd HH-mm-ss",
-				);
+				const formattedDateTime = format(new Date(), "yyyy-MM-dd HH-mm-ss");
 				const filename = `Chat ${formattedDateTime}.md`;
 				const folderPath = this.settings.chatFolderPath;
 
@@ -181,15 +178,12 @@ export default class CAO extends Plugin {
 				}
 
 				let tokenCount = 0;
-				let interval = 0;
 
 				if (this.settings.provider === "anthropic") {
 					// Anthropic SDK
 					const msgs = messages.map((m) => ({
 						role:
-							m.role === "user"
-								? ("user" as const)
-								: ("assistant" as const),
+							m.role === "user" ? ("user" as const) : ("assistant" as const),
 						content: m.content,
 					}));
 
@@ -203,14 +197,11 @@ export default class CAO extends Plugin {
 
 					try {
 						if (this.settings.streamingResponse) {
-							interval = 0;
-							await streamText(
+							await renderText(
 								editor,
 								formatNewAISection(this.settings.useCallouts),
-								interval,
 							);
-							const stream =
-								this.anthropic!.messages.stream(chatOptions);
+							const stream = this.anthropic!.messages.stream(chatOptions);
 							let isStartOfLine = true; // Track if we're at the start of a line for callout processing
 							for await (const event of stream) {
 								if (
@@ -218,43 +209,27 @@ export default class CAO extends Plugin {
 									"text" in event.delta
 								) {
 									if (this.settings.useCallouts) {
-										const {
-											processedChunk,
-											newIsStartOfLine,
-										} = processStreamingCalloutContent(
-											event.delta.text,
-											isStartOfLine,
-										);
-										await streamText(
-											editor,
-											processedChunk,
-											interval,
-										);
+										const { processedChunk, newIsStartOfLine } =
+											processStreamingCalloutContent(
+												event.delta.text,
+												isStartOfLine,
+											);
+										await renderText(editor, processedChunk);
 										isStartOfLine = newIsStartOfLine;
 									} else {
-										await streamText(
-											editor,
-											event.delta.text,
-											interval,
-										);
+										await renderText(editor, event.delta.text);
 									}
 								}
 								if (event.type === "message_delta") {
-									tokenCount =
-										event.usage?.output_tokens || 0;
+									tokenCount = event.usage?.output_tokens || 0;
 								}
 							}
 						} else {
-							interval = 50;
 							const response =
-								await this.anthropic!.messages.create(
-									chatOptions,
-								);
+								await this.anthropic!.messages.create(chatOptions);
 
 							if (!response || !response.content) {
-								new Notice(
-									"No response received, try again later",
-								);
+								new Notice("No response received, try again later");
 								return;
 							}
 
@@ -268,19 +243,17 @@ export default class CAO extends Plugin {
 							const generatedText =
 								formatNewAISection(this.settings.useCallouts) +
 								processedContent;
-							await streamText(editor, generatedText, interval);
+							await renderText(editor, generatedText);
 						}
 					} catch (error: any) {
-						let errorMessage =
-							"Failed to get response from Anthropic: ";
+						let errorMessage = "Failed to get response from Anthropic: ";
 						if (error.status === 401) {
 							errorMessage +=
 								"Invalid API key. Please check your Anthropic API key in settings.";
 						} else if (error.status === 404) {
 							errorMessage += `Model "${model}" not found. Please verify the model name in settings.`;
 						} else if (error.status === 429) {
-							errorMessage +=
-								"Rate limit exceeded. Please try again later.";
+							errorMessage += "Rate limit exceeded. Please try again later.";
 						} else if (error.message) {
 							errorMessage += error.message;
 						} else {
@@ -296,94 +269,67 @@ export default class CAO extends Plugin {
 						{ role: "system", content: systemPrompt },
 						...messages.map((m) => ({
 							role:
-								m.role === "user"
-									? ("user" as const)
-									: ("assistant" as const),
+								m.role === "user" ? ("user" as const) : ("assistant" as const),
 							content: m.content,
 						})),
 					];
 
-					const chatOptions: OpenAI.Chat.ChatCompletionCreateParams =
-						{
-							model,
-							max_tokens: maxTokens,
-							temperature,
-							messages: msgs,
-						};
+					const chatOptions: OpenAI.Chat.ChatCompletionCreateParams = {
+						model,
+						max_tokens: maxTokens,
+						temperature,
+						messages: msgs,
+					};
 
 					try {
 						if (this.settings.streamingResponse) {
-							interval = 0;
-							await streamText(
+							await renderText(
 								editor,
 								formatNewAISection(this.settings.useCallouts),
-								interval,
 							);
-							const stream =
-								await this.openai!.chat.completions.create({
-									...chatOptions,
-									stream: true,
-								});
+							const stream = await this.openai!.chat.completions.create({
+								...chatOptions,
+								stream: true,
+							});
 							let isStartOfLine = true; // Track if we're at the start of a line for callout processing
 							for await (const chunk of stream) {
-								const content =
-									chunk.choices[0]?.delta?.content;
+								const content = chunk.choices[0]?.delta?.content;
 								if (content) {
 									if (this.settings.useCallouts) {
-										const {
-											processedChunk,
-											newIsStartOfLine,
-										} = processStreamingCalloutContent(
-											content,
-											isStartOfLine,
-										);
-										await streamText(
-											editor,
-											processedChunk,
-											interval,
-										);
+										const { processedChunk, newIsStartOfLine } =
+											processStreamingCalloutContent(content, isStartOfLine);
+										await renderText(editor, processedChunk);
 										isStartOfLine = newIsStartOfLine;
 									} else {
-										await streamText(
-											editor,
-											content,
-											interval,
-										);
+										await renderText(editor, content);
 									}
 								}
 								if (chunk.usage) {
-									tokenCount =
-										chunk.usage.completion_tokens || 0;
+									tokenCount = chunk.usage.completion_tokens || 0;
 								}
 							}
 						} else {
-							interval = 50;
 							const response =
-								await this.openai!.chat.completions.create(
-									chatOptions,
-								);
+								await this.openai!.chat.completions.create(chatOptions);
 
 							if (
 								!response ||
 								!response.choices ||
 								response.choices.length === 0
 							) {
-								new Notice(
-									"No response received, try again later",
-								);
+								new Notice("No response received, try again later");
 								return;
 							}
 
 							tokenCount = response.usage?.completion_tokens || 0;
-							const rawContent =
-								response.choices[0].message.content;
+							const rawContent = response.choices[0].message.content || "";
 							const processedContent = this.settings.useCallouts
 								? processCalloutContent(rawContent)
 								: rawContent;
 							const generatedText =
 								formatNewAISection(this.settings.useCallouts) +
 								processedContent;
-							await streamText(editor, generatedText, interval);
+							await renderText(editor, generatedText);
 						}
 					} catch (error: any) {
 						let errorMessage = "Failed to get response: ";
@@ -393,8 +339,7 @@ export default class CAO extends Plugin {
 						} else if (error.status === 404) {
 							errorMessage += `Model "${model}" not found. Please verify the base URL or the model name in settings.`;
 						} else if (error.status === 429) {
-							errorMessage +=
-								"Rate limit exceeded. Please try again later.";
+							errorMessage += "Rate limit exceeded. Please try again later.";
 						} else if (error.message) {
 							errorMessage += error.message;
 						} else {
@@ -409,12 +354,11 @@ export default class CAO extends Plugin {
 					const tokenText = this.settings.useCallouts
 						? `\n> (${tokenCount} tokens)`
 						: `\n(${tokenCount} tokens)`;
-					await streamText(editor, tokenText, interval);
+					await renderText(editor, tokenText);
 				}
-				await streamText(
+				await renderText(
 					editor,
 					formatNewUserSection(this.settings.useCallouts),
-					interval,
 				);
 				setCursorToEnd(editor);
 			},
@@ -439,8 +383,7 @@ export default class CAO extends Plugin {
 						frontmatter["model"] = model;
 						frontmatter["max_tokens"] = this.settings.maxTokens;
 						frontmatter["temperature"] = this.settings.temperature;
-						frontmatter["system_prompt"] =
-							this.settings.systemPrompt;
+						frontmatter["system_prompt"] = this.settings.systemPrompt;
 					},
 				);
 			},

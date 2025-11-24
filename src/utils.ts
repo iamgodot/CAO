@@ -395,30 +395,22 @@ export function processStreamingCalloutContent(
 	return { processedChunk, newIsStartOfLine };
 }
 
-export function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export function setCursorToEnd(editor: Editor): void {
 	const lastLine = editor.lastLine();
 	editor.setCursor(lastLine, editor.getLine(lastLine).length);
 }
 
-export async function streamText(
+export async function renderText(
 	editor: Editor,
 	text: string,
-	interval: number,
 ): Promise<void> {
-	for (const char of text.split("")) {
-		await sleep(interval);
-		const lastLine = editor.lastLine();
-		const pos = {
-			line: lastLine,
-			ch: editor.getLine(lastLine).length,
-		};
-		editor.replaceRange(char, pos);
-		editor.scrollIntoView({ from: pos, to: pos }, true);
-	}
+	const lastLine = editor.lastLine();
+	const pos = {
+		line: lastLine,
+		ch: editor.getLine(lastLine).length,
+	};
+	editor.replaceRange(text, pos);
+	editor.scrollIntoView({ from: pos, to: pos }, true);
 }
 
 // Template processing utilities
