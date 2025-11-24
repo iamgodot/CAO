@@ -16,6 +16,7 @@ export interface CAOSettings {
 	chatFolderPath: string;
 	streamingResponse: boolean;
 	showStats: boolean;
+	useCallouts: boolean;
 	customPrompts: PromptTemplate[];
 }
 

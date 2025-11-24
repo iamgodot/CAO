@@ -18,20 +18,24 @@ export const DEFAULT_SETTINGS: CAOSettings = {
 	chatFolderPath: "CAO/history",
 	streamingResponse: true,
 	showStats: true,
+	useCallouts: false,
 	customPrompts: [
 		{
 			name: "Summarize",
-			template: "Please provide a comprehensive summary of the following content. Include the main points, key takeaways, and important details:\n\n{cursor}"
+			template:
+				"Please provide a comprehensive summary of the following content. Include the main points, key takeaways, and important details:\n\n{cursor}",
 		},
 		{
 			name: "Rewrite",
-			template: "Please rewrite the following text to improve clarity, readability, and flow while maintaining the original meaning and tone:\n\n{cursor}"
+			template:
+				"Please rewrite the following text to improve clarity, readability, and flow while maintaining the original meaning and tone:\n\n{cursor}",
 		},
 		{
 			name: "Explain like I'm 5",
-			template: "Please explain {cursor} in simple terms that a 5-year-old could understand. Use everyday examples and avoid complex terminology."
-		}
-	]
+			template:
+				"Please explain {cursor} in simple terms that a 5-year-old could understand. Use everyday examples and avoid complex terminology.",
+		},
+	],
 };
 
 export class CAOSettingTab extends PluginSettingTab {
@@ -66,21 +70,17 @@ export class CAOSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("API Provider")
-			.setDesc(
-				"Choose between Anthropic (official) or OpenAI-compatible APIs",
-			)
+			.setDesc("Choose between Anthropic (official) or OpenAI-compatible APIs")
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption("anthropic", "Anthropic (Official)")
 					.addOption("openai-compatible", "OpenAI Compatible")
 					.setValue(this.plugin.settings.provider)
-					.onChange(
-						async (value: "anthropic" | "openai-compatible") => {
-							this.plugin.settings.provider = value;
-							await this.plugin.saveSettings();
-							this.display(); // Refresh UI to show/hide fields
-						},
-					),
+					.onChange(async (value: "anthropic" | "openai-compatible") => {
+						this.plugin.settings.provider = value;
+						await this.plugin.saveSettings();
+						this.display(); // Refresh UI to show/hide fields
+					}),
 			);
 
 		// API Key field - dynamic based on provider
@@ -135,38 +135,14 @@ export class CAOSettingTab extends PluginSettingTab {
 				.setDesc("Claude model to use")
 				.addDropdown((dropdown) =>
 					dropdown
-						.addOption(
-							"claude-sonnet-4-5",
-							"Claude 4.5 Sonnet (latest)",
-						)
-						.addOption(
-							"claude-sonnet-4-0",
-							"Claude 4.0 Sonnet (latest)",
-						)
-						.addOption(
-							"claude-3-7-sonnet-latest",
-							"Claude 3.7 Sonnet (latest)",
-						)
-						.addOption(
-							"claude-haiku-4-5",
-							"Claude 4.5 Haiku (latest)",
-						)
-						.addOption(
-							"claude-3-5-haiku-latest",
-							"Claude 3.5 Haiku (latest)",
-						)
-						.addOption(
-							"claude-3-haiku-latest",
-							"Claude 3 Haiku (latest)",
-						)
-						.addOption(
-							"claude-opus-4-1",
-							"Claude 4.1 Opus (latest)",
-						)
-						.addOption(
-							"claude-opus-4-0",
-							"Claude 4.0 Opus (latest)",
-						)
+						.addOption("claude-sonnet-4-5", "Claude 4.5 Sonnet (latest)")
+						.addOption("claude-sonnet-4-0", "Claude 4.0 Sonnet (latest)")
+						.addOption("claude-3-7-sonnet-latest", "Claude 3.7 Sonnet (latest)")
+						.addOption("claude-haiku-4-5", "Claude 4.5 Haiku (latest)")
+						.addOption("claude-3-5-haiku-latest", "Claude 3.5 Haiku (latest)")
+						.addOption("claude-3-haiku-latest", "Claude 3 Haiku (latest)")
+						.addOption("claude-opus-4-1", "Claude 4.1 Opus (latest)")
+						.addOption("claude-opus-4-0", "Claude 4.0 Opus (latest)")
 						.setValue(this.plugin.settings.anthropicModel)
 						.onChange(async (value) => {
 							this.plugin.settings.anthropicModel = value;
@@ -199,16 +175,13 @@ export class CAOSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						const numValue = Number(value);
 						if (!numValue) {
-							this.plugin.settings.maxTokens =
-								DEFAULT_SETTINGS.maxTokens;
+							this.plugin.settings.maxTokens = DEFAULT_SETTINGS.maxTokens;
 							await this.plugin.saveSettings();
 						} else if (!isNaN(numValue) && numValue > 0) {
 							this.plugin.settings.maxTokens = numValue;
 							await this.plugin.saveSettings();
 						} else {
-							new Notice(
-								"Max tokens should be a positive integer.",
-							);
+							new Notice("Max tokens should be a positive integer.");
 						}
 					}),
 			);
@@ -224,20 +197,13 @@ export class CAOSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						const numValue = Number(value);
 						if (!numValue) {
-							this.plugin.settings.temperature =
-								DEFAULT_SETTINGS.temperature;
+							this.plugin.settings.temperature = DEFAULT_SETTINGS.temperature;
 							await this.plugin.saveSettings();
-						} else if (
-							!isNaN(numValue) &&
-							numValue >= 0 &&
-							numValue <= 1
-						) {
+						} else if (!isNaN(numValue) && numValue >= 0 && numValue <= 1) {
 							this.plugin.settings.temperature = numValue;
 							await this.plugin.saveSettings();
 						} else {
-							new Notice(
-								"Temperature should be a number between 0 and 1.",
-							);
+							new Notice("Temperature should be a number between 0 and 1.");
 						}
 					}),
 			);
@@ -275,17 +241,27 @@ export class CAOSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+		new Setting(containerEl)
+			.setName("Callouts for chat formatting (Experimental)")
+			.setDesc("Use callouts instead of headers to format chat messages")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.useCallouts)
+					.onChange(async (value) => {
+						this.plugin.settings.useCallouts = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		// Custom Prompts Section
 		containerEl.createEl("h3", { text: "Custom Prompts" });
 		containerEl.createEl("p", {
-			text: "Create custom commands for quick prompt insertion. Use {cursor} to mark cursor position."
+			text: "Create custom commands for quick prompt insertion. Use {cursor} to mark cursor position.",
 		});
 
 		// Display existing templates
 		this.plugin.settings.customPrompts.forEach((template, index) => {
-			const setting = new Setting(containerEl)
-				.setName(template.name);
+			const setting = new Setting(containerEl).setName(template.name);
 
 			// Edit button
 			setting.addButton((button) =>
@@ -294,7 +270,7 @@ export class CAOSettingTab extends PluginSettingTab {
 					.setTooltip("Edit")
 					.onClick(() => {
 						this.showTemplateEditor(template, index);
-					})
+					}),
 			);
 
 			// Delete button
@@ -307,27 +283,26 @@ export class CAOSettingTab extends PluginSettingTab {
 						this.plugin.settings.customPrompts.splice(index, 1);
 						await this.plugin.saveSettings();
 						this.display(); // Refresh UI
-					})
+					}),
 			);
 		});
 
 		// Add new template button
-		new Setting(containerEl)
-			.addButton((button) =>
-				button
-					.setButtonText("Add Custom Prompt")
-					.setCta()
-					.onClick(() => {
-						this.showTemplateEditor();
-					})
-			);
+		new Setting(containerEl).addButton((button) =>
+			button
+				.setButtonText("Add Custom Prompt")
+				.setCta()
+				.onClick(() => {
+					this.showTemplateEditor();
+				}),
+		);
 	}
 
 	showTemplateEditor(template?: PromptTemplate, index?: number) {
 		const isEditing = template !== undefined;
 		const currentTemplate: PromptTemplate = template || {
 			name: "",
-			template: ""
+			template: "",
 		};
 
 		const modal = new TemplateEditorModal(
@@ -336,7 +311,7 @@ export class CAOSettingTab extends PluginSettingTab {
 			async (updatedTemplate) => {
 				// Validate name uniqueness and command conflicts
 				const existingIndex = this.plugin.settings.customPrompts.findIndex(
-					t => t.name === updatedTemplate.name
+					(t) => t.name === updatedTemplate.name,
 				);
 
 				if (!isEditing && existingIndex !== -1) {
@@ -351,9 +326,20 @@ export class CAOSettingTab extends PluginSettingTab {
 
 				// Check if command name conflicts with existing Obsidian commands
 				// Note: We check this.app.commands.commands which contains all registered commands
-				if ((this.app as any).commands?.commands && (this.app as any).commands.commands[updatedTemplate.name]) {
-					if (!isEditing || (isEditing && index !== undefined && this.plugin.settings.customPrompts[index].name !== updatedTemplate.name)) {
-						new Notice("A command with this name already exists. Please choose a different name.");
+				if (
+					(this.app as any).commands?.commands &&
+					(this.app as any).commands.commands[updatedTemplate.name]
+				) {
+					if (
+						!isEditing ||
+						(isEditing &&
+							index !== undefined &&
+							this.plugin.settings.customPrompts[index].name !==
+								updatedTemplate.name)
+					) {
+						new Notice(
+							"A command with this name already exists. Please choose a different name.",
+						);
 						return;
 					}
 				}
@@ -367,7 +353,7 @@ export class CAOSettingTab extends PluginSettingTab {
 
 				await this.plugin.saveSettings();
 				this.display(); // Refresh UI
-			}
+			},
 		);
 		modal.open();
 	}
@@ -377,7 +363,11 @@ class TemplateEditorModal extends Modal {
 	template: PromptTemplate;
 	onSave: (template: PromptTemplate) => void;
 
-	constructor(app: App, template: PromptTemplate, onSave: (template: PromptTemplate) => void) {
+	constructor(
+		app: App,
+		template: PromptTemplate,
+		onSave: (template: PromptTemplate) => void,
+	) {
 		super(app);
 		this.template = { ...template };
 		this.onSave = onSave;
@@ -397,11 +387,11 @@ class TemplateEditorModal extends Modal {
 		nameSection.createEl("h3", { text: "Command Name" });
 		nameSection.createEl("p", {
 			text: "Name for the command (e.g., 'explain' creates 'explain' command)",
-			cls: "setting-item-description"
+			cls: "setting-item-description",
 		});
 
 		const nameInput = nameSection.createEl("input", {
-			type: "text"
+			type: "text",
 		});
 		nameInput.value = this.template.name; // Set value after creation
 		nameInput.style.width = "100%";
@@ -419,11 +409,11 @@ class TemplateEditorModal extends Modal {
 		templateSection.createEl("h3", { text: "Template Content" });
 		templateSection.createEl("p", {
 			text: "Template content. Use {cursor} to mark where cursor should be placed after insertion.",
-			cls: "setting-item-description"
+			cls: "setting-item-description",
 		});
 
 		const templateTextArea = templateSection.createEl("textarea", {
-			placeholder: "Please explain {cursor} in simple terms for beginners"
+			placeholder: "Please explain {cursor} in simple terms for beginners",
 		});
 		templateTextArea.value = this.template.template; // Set value after creation
 		templateTextArea.style.width = "100%";
@@ -438,7 +428,9 @@ class TemplateEditorModal extends Modal {
 		});
 
 		// Buttons
-		const buttonContainer = contentEl.createEl("div", { cls: "modal-button-container" });
+		const buttonContainer = contentEl.createEl("div", {
+			cls: "modal-button-container",
+		});
 		buttonContainer.style.display = "flex";
 		buttonContainer.style.justifyContent = "flex-end";
 		buttonContainer.style.gap = "8px";
