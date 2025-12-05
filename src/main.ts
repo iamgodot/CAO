@@ -50,7 +50,7 @@ export default class CAO extends Plugin {
 			id: "open-new-chat",
 			name: "Open new chat",
 			callback: async () => {
-				const formattedDateTime = format(new Date(), "yyyy-MM-dd HH-mm-ss");
+				const formattedDateTime = format(new Date(), "yyyy-MM-dd HH-mm");
 				const filename = `Chat ${formattedDateTime}.md`;
 				const folderPath = this.settings.chatFolderPath;
 
