@@ -74,7 +74,7 @@ For consistency, callouts and headers are not allowed to coexist in the same cha
 
 ## Supported Models
 
-CAO supports all Claude models, take a look at [here](https://docs.claude.com/en/docs/about-claude/model-deprecations#model-status) for more details.
+CAO supports all Claude models, take a look at [here](https://platform.claude.com/docs/en/about-claude/models/overview) for more details.
 
 **You can either choose an active model in the dropdown menu, or specify an old one in the front matter as illustrated above.**
 

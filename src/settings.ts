@@ -1,6 +1,3 @@
-// Model aliases: https://docs.claude.com/en/docs/about-claude/models/overview#model-aliases (last check: 2025_10_15)
-// Retired-Dates: https://docs.claude.com/en/docs/about-claude/model-deprecations#model-status (last check: 2025_10_15)
-
 import { App, Modal, Notice, PluginSettingTab, Setting } from "obsidian";
 import { CAOSettings, PromptTemplate } from "./types";
 import CAO from "./main";
@@ -137,10 +134,10 @@ export class CAOSettingTab extends PluginSettingTab {
 					dropdown
 						.addOption("claude-sonnet-4-5", "Claude 4.5 Sonnet (latest)")
 						.addOption("claude-sonnet-4-0", "Claude 4.0 Sonnet (latest)")
-						.addOption("claude-3-7-sonnet-latest", "Claude 3.7 Sonnet (latest)")
 						.addOption("claude-haiku-4-5", "Claude 4.5 Haiku (latest)")
 						.addOption("claude-3-5-haiku-latest", "Claude 3.5 Haiku (latest)")
-						.addOption("claude-3-haiku-latest", "Claude 3 Haiku (latest)")
+						.addOption("claude-3-haiku-20240307", "Claude 3 Haiku (latest)")
+						.addOption("claude-opus-4-5", "Claude 4.5 Opus (latest)")
 						.addOption("claude-opus-4-1", "Claude 4.1 Opus (latest)")
 						.addOption("claude-opus-4-0", "Claude 4.0 Opus (latest)")
 						.setValue(this.plugin.settings.anthropicModel)
