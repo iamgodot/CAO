@@ -9,10 +9,11 @@ CAO allows you to chat with Claude directly in a note.
 1. [x] Chat in notes with **editable** content
 2. [x] Manage chat histories as plain notes
 3. [x] Customize chat options in **front matter**
-4. [x] Use **wikilinks** for notes as chat context
+4. [x] Support **wikilinks** for adding notes as context
 5. [x] Support custom API providers such as OpenRouter
 6. [x] Support custom prompts with templates
-7. [ ] Support image embedding in prompts
+7. [x] Support **callouts** for chat formatting
+8. [ ] Support image embedding in prompts
 
 ## Installation
 
@@ -64,6 +65,12 @@ Notes:
 Now you can add custom prompts in settings, which will become available in the command palette or as slash commands(if toggled on in core plugins).
 
 Additionally, you can use `{cursor}` in the prompt template as a placeholder of cursor for editing after the prompt is inserted.
+
+### Use callouts for chat formatting
+
+You can choose to use callouts instead of headers to format chat messages, for now this is turned off by default.
+
+For consistency, callouts and headers are not allowed to coexist in the same chat, so if you're already using headers in a chat, you have to clear it or open a new chat to use callouts.
 
 ## Supported Models
 
