@@ -14,7 +14,7 @@ import {
 	writeChatSettingsToFrontmatter,
 	CURSOR_PLACEHOLDER,
 } from "./utils";
-import { ChatSelectionModal } from "./chat-selection-modal";
+import { ChatSelectionModal } from "./components/chat-selection-modal";
 
 export default class CAO extends Plugin {
 	settings: CAOSettings;
