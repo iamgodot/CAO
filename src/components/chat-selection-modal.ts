@@ -1,5 +1,5 @@
 import { App, Notice, SuggestModal, TFile } from "obsidian";
-import { getChatFiles, sortFilesByMtime, formatChatDisplayName } from "./utils";
+import { getChatFiles, sortFilesByMtime, formatChatDisplayName } from "../utils/content";
 
 export interface ChatFile {
 	file: TFile;
