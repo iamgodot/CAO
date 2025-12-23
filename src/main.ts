@@ -1,49 +1,30 @@
 import { Editor, EditorPosition, MarkdownView, Plugin, Notice } from "obsidian";
-import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
 import { format } from "date-fns";
 import { CAOSettingTab, DEFAULT_SETTINGS } from "./settings";
-import { CAOSettings, PromptTemplate } from "./types";
+import { CAOSettings, PromptTemplate } from "./types/settings";
+import { ChatService } from "./services/chat-service";
+import { ResponseHandlerFactory } from "./services/response-handler-factory";
+import { ChatRequest } from "./types/content";
 import {
 	setCursorToEnd,
-	renderText,
-	formatNewAISection,
 	formatNewUserSection,
-	processCalloutContent,
-	processStreamingCalloutContent,
-	validateChatBeforeResponse,
+	parseChat,
+	validateChatFormat,
+	extractChatRequestSettings,
+	writeChatSettingsToFrontmatter,
+	CURSOR_PLACEHOLDER,
 } from "./utils";
-import { TextBlock } from "@anthropic-ai/sdk/resources";
 import { ChatSelectionModal } from "./chat-selection-modal";
 
 export default class CAO extends Plugin {
 	settings: CAOSettings;
-
-	private anthropic: Anthropic | null = null;
-	private openai: OpenAI | null = null;
+	private chatService: ChatService;
 	private promptCommands: Set<string> = new Set();
-
-	private initializeAnthropicClient() {
-		if (this.settings.provider === "anthropic") {
-			this.anthropic = new Anthropic({
-				apiKey: this.settings.anthropicApiKey,
-				dangerouslyAllowBrowser: true,
-			});
-			this.openai = null;
-		} else {
-			this.openai = new OpenAI({
-				apiKey: this.settings.openaiApiKey,
-				baseURL: this.settings.baseURL || "https://api.openai.com/v1",
-				dangerouslyAllowBrowser: true,
-			});
-			this.anthropic = null;
-		}
-	}
 
 	async onload() {
 		await this.loadSettings();
 
-		this.initializeAnthropicClient();
+		this.chatService = new ChatService(this.settings);
 		this.addSettingTab(new CAOSettingTab(this.app, this));
 
 		this.addCommand({
@@ -59,7 +40,6 @@ export default class CAO extends Plugin {
 				}
 
 				const filePath = `${folderPath}/${filename}`;
-				// TODO: make constant
 				const file = await this.app.vault.create(
 					filePath,
 					formatNewUserSection(this.settings.useCallouts, true),
@@ -122,246 +102,49 @@ export default class CAO extends Plugin {
 			id: "get-response",
 			name: "Get response",
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				const currentApiKey =
-					this.settings.provider === "anthropic"
-						? this.settings.anthropicApiKey
-						: this.settings.openaiApiKey;
-
-				if (!currentApiKey) {
+				if (!this.chatService.hasProvider()) {
 					new Notice("Please set your API key first.");
 					return;
 				}
 
 				const currentText = editor.getValue();
 
-				// Comprehensive chat validation
-				const validation = await validateChatBeforeResponse(
-					this.app,
+				const formatValidation = await validateChatFormat(
 					currentText,
 					this.settings.useCallouts,
 				);
-				if (!validation.isValid) {
-					new Notice(validation.error!.message, 8000);
+				if (!formatValidation.isValid) {
+					new Notice(formatValidation.error!.message, 8000);
 					return;
 				}
 
-				const messages = validation.messages!;
-
-				// Get base settings from plugin or frontmatter
-				let model =
-					this.settings.provider === "anthropic"
-						? this.settings.anthropicModel
-						: this.settings.openaiModel;
-				let maxTokens = this.settings.maxTokens;
-				let temperature = this.settings.temperature;
-				let systemPrompt = this.settings.systemPrompt;
-
-				const currentFile = view.file;
-				if (currentFile) {
-					await this.app.fileManager.processFrontMatter(
-						currentFile,
-						(frontmatter) => {
-							if ("model" in frontmatter) {
-								model = frontmatter["model"];
-							}
-							if ("max_tokens" in frontmatter) {
-								maxTokens = frontmatter["max_tokens"];
-							}
-							if ("temperature" in frontmatter) {
-								temperature = frontmatter["temperature"];
-							}
-							if ("system_prompt" in frontmatter) {
-								systemPrompt = frontmatter["system_prompt"];
-							}
-						},
-					);
+				const messages = await parseChat(this.app, currentText);
+				if (!messages) {
+					new Notice("Failed to parse chat messages", 8000);
+					return;
 				}
 
-				let tokenCount = 0;
-
-				if (this.settings.provider === "anthropic") {
-					// Anthropic SDK
-					const msgs = messages.map((m) => ({
-						role:
-							m.role === "user" ? ("user" as const) : ("assistant" as const),
-						content: m.content,
-					}));
-
-					const chatOptions = {
-						model,
-						max_tokens: maxTokens,
-						temperature,
-						system: systemPrompt,
-						messages: msgs,
-					};
-
-					try {
-						if (this.settings.streamingResponse) {
-							await renderText(
-								editor,
-								formatNewAISection(this.settings.useCallouts),
-							);
-							const stream = this.anthropic!.messages.stream(chatOptions);
-							let isStartOfLine = true; // Track if we're at the start of a line for callout processing
-							for await (const event of stream) {
-								if (
-									event.type === "content_block_delta" &&
-									"text" in event.delta
-								) {
-									if (this.settings.useCallouts) {
-										const { processedChunk, newIsStartOfLine } =
-											processStreamingCalloutContent(
-												event.delta.text,
-												isStartOfLine,
-											);
-										await renderText(editor, processedChunk);
-										isStartOfLine = newIsStartOfLine;
-									} else {
-										await renderText(editor, event.delta.text);
-									}
-								}
-								if (event.type === "message_delta") {
-									tokenCount = event.usage?.output_tokens || 0;
-								}
-							}
-						} else {
-							const response =
-								await this.anthropic!.messages.create(chatOptions);
-
-							if (!response || !response.content) {
-								new Notice("No response received, try again later");
-								return;
-							}
-
-							tokenCount = response.usage?.output_tokens || 0;
-							const rawContent = response.content
-								.map((item: TextBlock) => item.text)
-								.join("");
-							const processedContent = this.settings.useCallouts
-								? processCalloutContent(rawContent)
-								: rawContent;
-							const generatedText =
-								formatNewAISection(this.settings.useCallouts) +
-								processedContent;
-							await renderText(editor, generatedText);
-						}
-					} catch (error: any) {
-						let errorMessage = "Failed to get response from Anthropic: ";
-						if (error.status === 401) {
-							errorMessage +=
-								"Invalid API key. Please check your Anthropic API key in settings.";
-						} else if (error.status === 404) {
-							errorMessage += `Model "${model}" not found. Please verify the model name in settings.`;
-						} else if (error.status === 429) {
-							errorMessage += "Rate limit exceeded. Please try again later.";
-						} else if (error.message) {
-							errorMessage += error.message;
-						} else {
-							errorMessage += "Unknown error occurred.";
-						}
-						new Notice(errorMessage, 8000);
-						console.error("Anthropic API error:", error);
-						return;
-					}
-				} else {
-					// OpenAI SDK
-					const msgs: OpenAI.Chat.ChatCompletionMessageParam[] = [
-						{ role: "system", content: systemPrompt },
-						...messages.map((m) => ({
-							role:
-								m.role === "user" ? ("user" as const) : ("assistant" as const),
-							content: m.content,
-						})),
-					];
-
-					const chatOptions: OpenAI.Chat.ChatCompletionCreateParams = {
-						model,
-						max_tokens: maxTokens,
-						temperature,
-						messages: msgs,
-					};
-
-					try {
-						if (this.settings.streamingResponse) {
-							await renderText(
-								editor,
-								formatNewAISection(this.settings.useCallouts),
-							);
-							const stream = await this.openai!.chat.completions.create({
-								...chatOptions,
-								stream: true,
-								stream_options: { include_usage: true },
-							});
-							let isStartOfLine = true; // Track if we're at the start of a line for callout processing
-							for await (const chunk of stream) {
-								const content = chunk.choices[0]?.delta?.content;
-								if (content) {
-									if (this.settings.useCallouts) {
-										const { processedChunk, newIsStartOfLine } =
-											processStreamingCalloutContent(content, isStartOfLine);
-										await renderText(editor, processedChunk);
-										isStartOfLine = newIsStartOfLine;
-									} else {
-										await renderText(editor, content);
-									}
-								}
-								if (chunk.usage) {
-									tokenCount = chunk.usage.completion_tokens || 0;
-								}
-							}
-						} else {
-							const response =
-								await this.openai!.chat.completions.create(chatOptions);
-
-							if (
-								!response ||
-								!response.choices ||
-								response.choices.length === 0
-							) {
-								new Notice("No response received, try again later");
-								return;
-							}
-
-							tokenCount = response.usage?.completion_tokens || 0;
-							const rawContent = response.choices[0].message.content || "";
-							const processedContent = this.settings.useCallouts
-								? processCalloutContent(rawContent)
-								: rawContent;
-							const generatedText =
-								formatNewAISection(this.settings.useCallouts) +
-								processedContent;
-							await renderText(editor, generatedText);
-						}
-					} catch (error: any) {
-						let errorMessage = "Failed to get response: ";
-						if (error.status === 401) {
-							errorMessage +=
-								"Invalid API key. Please check your provider API key in settings.";
-						} else if (error.status === 404) {
-							errorMessage += `Model "${model}" not found. Please verify the base URL or the model name in settings.`;
-						} else if (error.status === 429) {
-							errorMessage += "Rate limit exceeded. Please try again later.";
-						} else if (error.message) {
-							errorMessage += error.message;
-						} else {
-							errorMessage += "Unknown error occurred.";
-						}
-						new Notice(errorMessage, 8000);
-						console.error("OpenAI-compatible API error:", error);
-						return;
-					}
-				}
-				if (this.settings.showStats) {
-					const tokenText = this.settings.useCallouts
-						? `\n> (${tokenCount} tokens)`
-						: `\n(${tokenCount} tokens)`;
-					await renderText(editor, tokenText);
-				}
-				await renderText(
-					editor,
-					formatNewUserSection(this.settings.useCallouts),
+				const chatSettings = await extractChatRequestSettings(
+					this.app,
+					view.file,
+					this.settings,
 				);
-				setCursorToEnd(editor);
+				const request: ChatRequest = {
+					...chatSettings,
+					messages,
+					stream: this.settings.streamingResponse,
+				};
+
+				const handler = ResponseHandlerFactory.create(
+					this.settings.streamingResponse,
+					{
+						editor,
+						useCallouts: this.settings.useCallouts,
+						showStats: this.settings.showStats,
+					},
+				);
+
+				await handler.process(this.chatService, request);
 			},
 		});
 
@@ -374,23 +157,14 @@ export default class CAO extends Plugin {
 					new Notice("Please open a chat first.");
 					return;
 				}
-				await this.app.fileManager.processFrontMatter(
+				await writeChatSettingsToFrontmatter(
+					this.app,
 					currentFile,
-					(frontmatter) => {
-						const model =
-							this.settings.provider === "anthropic"
-								? this.settings.anthropicModel
-								: this.settings.openaiModel;
-						frontmatter["model"] = model;
-						frontmatter["max_tokens"] = this.settings.maxTokens;
-						frontmatter["temperature"] = this.settings.temperature;
-						frontmatter["system_prompt"] = this.settings.systemPrompt;
-					},
+					this.settings,
 				);
 			},
 		});
 
-		// Initialize prompt commands - these work with native slash commands
 		this.registerPromptCommands(this.settings.customPrompts);
 	}
 
@@ -411,7 +185,6 @@ export default class CAO extends Plugin {
 	private updatePromptCommands(templates: PromptTemplate[]) {
 		// Remove commands that no longer exist
 		const newNames = new Set(templates.map((t) => t.name));
-
 		this.promptCommands.forEach((commandId) => {
 			if (!newNames.has(commandId)) {
 				this.removeCommand(commandId);
@@ -439,7 +212,6 @@ export default class CAO extends Plugin {
 		const cursorPos = editor.getCursor();
 		const templateText = template.template;
 
-		// Handle cursor positioning
 		this.positionCursorInTemplate(editor, cursorPos, templateText);
 	}
 
@@ -448,8 +220,7 @@ export default class CAO extends Plugin {
 		insertPos: EditorPosition,
 		templateText: string,
 	) {
-		const cursorPlaceholder = "{cursor}";
-		const placeholderIndex = templateText.indexOf(cursorPlaceholder);
+		const placeholderIndex = templateText.indexOf(CURSOR_PLACEHOLDER);
 
 		if (placeholderIndex !== -1) {
 			// Calculate cursor position relative to insert point
@@ -463,7 +234,7 @@ export default class CAO extends Plugin {
 					: lines[lines.length - 1].length;
 
 			// Insert template without placeholder
-			const cleanTemplate = templateText.replace(cursorPlaceholder, "");
+			const cleanTemplate = templateText.replace(CURSOR_PLACEHOLDER, "");
 			editor.replaceRange(cleanTemplate, insertPos);
 
 			// Position cursor
@@ -486,10 +257,8 @@ export default class CAO extends Plugin {
 	async loadSettings() {
 		const data = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-
 		let needsSave = false;
 
-		// Migration from v1.3.1 to v1.4.0: transfer old settings to new structure
 		if (data?.apiKey && !data?.anthropicApiKey) {
 			this.settings.anthropicApiKey = data.apiKey;
 			this.settings.provider = "anthropic";
@@ -500,7 +269,6 @@ export default class CAO extends Plugin {
 			needsSave = true;
 		}
 
-		// Save migrated settings
 		if (needsSave) {
 			await this.saveSettings();
 		}
@@ -508,9 +276,7 @@ export default class CAO extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		this.initializeAnthropicClient();
-
-		// Update prompt commands with new templates
+		this.chatService.setProvider(this.settings);
 		this.updatePromptCommands(this.settings.customPrompts);
 	}
 }

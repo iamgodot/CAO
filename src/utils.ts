@@ -1,5 +1,23 @@
-import { App, Editor } from "obsidian";
-import { ChatMessage } from "./types";
+import { App, Editor, TFile } from "obsidian";
+import {
+	ChatMessage,
+	ChatFormatValidation,
+	ChatRequestSettings,
+} from "./types/content";
+import { CAOSettings } from "./types/settings";
+
+export const CURSOR_PLACEHOLDER = "{cursor}";
+export const CALLOUT_USER_PREFIX = "> [!question]+ Me";
+export const CALLOUT_AI_PREFIX = "> [!success]+ CAO";
+export const HEADER_USER_PREFIX = "### Me";
+export const HEADER_AI_PREFIX = "### CAO";
+
+export const FRONTMATTER_KEYS = {
+	MODEL: "model",
+	MAX_TOKENS: "max_tokens",
+	TEMPERATURE: "temperature",
+	SYSTEM_PROMPT: "system_prompt",
+} as const;
 
 function extractWikilinks(text: string): string[] {
 	const wikiLinkRegex = /\[\[(.*?)\]\]/g;
@@ -19,30 +37,22 @@ async function resolveWikilink(
 ): Promise<string | null> {
 	// Remove display text if present (everything after the pipe)
 	linkText = linkText.split("|")[0];
-
 	// Parse link components (file, heading, block)
 	let [fileName, subPath] = linkText.split("#");
-
 	// Get file by name (checking both displayed name and path)
 	const file = app.metadataCache.getFirstLinkpathDest(fileName, "");
-
 	if (!file) {
 		console.warn(`Could not find file: ${fileName}`);
 		return null;
 	}
 
-	// Read file content
+	// TODO: use cachedRead instead because we're not modifying the content
 	const fileContent = await app.vault.read(file);
-
-	// If no subpath, return whole file content
 	if (!subPath) {
 		return fileContent;
 	}
 
-	// Get metadata for headings and blocks
 	const metadata = app.metadataCache.getFileCache(file);
-
-	// If it's a heading reference
 	if (metadata?.headings && !subPath.startsWith("^")) {
 		const heading = metadata.headings.find((h) => h.heading === subPath);
 		if (heading) {
@@ -64,7 +74,6 @@ async function resolveWikilink(
 		}
 	}
 
-	// If it's a block reference
 	if (metadata?.blocks && subPath.startsWith("^")) {
 		const blockId = subPath.slice(1); // Remove ^ prefix
 		const blockPosition = metadata.blocks[blockId];
@@ -114,30 +123,41 @@ export async function parseChat(
 
 	for (const line of lines) {
 		// Check for header format (legacy)
-		if (line.startsWith("### Me")) {
+		if (line.startsWith(HEADER_USER_PREFIX)) {
 			if (currentMessage) {
-				currentMessage.content = content.join("\n").trim();
+				currentMessage.content = [
+					{
+						type: "text" as const,
+						content: content.join("\n").trim(),
+					},
+				];
 				messages.push(currentMessage as ChatMessage);
 			}
-			currentMessage = { role: "user", content: "" };
+			currentMessage = { role: "user", content: [] };
 			content = [];
 			inCallout = false;
-		} else if (line.startsWith("### CAO")) {
+		} else if (line.startsWith(HEADER_AI_PREFIX)) {
 			if (currentMessage) {
 				const userQuery = content.join("\n").trim();
-				currentMessage.content = await parseUserPrompt(
+				const processedContent = await parseUserPrompt(
 					app,
 					userQuery,
 					processedWikilinks,
 				);
+				currentMessage.content = [
+					{
+						type: "text" as const,
+						content: processedContent,
+					},
+				];
 				messages.push(currentMessage as ChatMessage);
 			}
-			currentMessage = { role: "assistant", content: "" };
+			currentMessage = { role: "assistant", content: [] };
 			content = [];
 			inCallout = false;
 		}
 		// Check for callout format
-		else if (line.startsWith("> [!question] Me") || line.startsWith("> [!question]+ Me")) {
+		else if (line.startsWith(CALLOUT_USER_PREFIX)) {
 			if (currentMessage) {
 				let processedContent = content.join("\n").trim();
 				// Remove callout prefixes if we were in a callout
@@ -147,13 +167,18 @@ export async function parseChat(
 						.join("\n")
 						.trim();
 				}
-				currentMessage.content = processedContent;
+				currentMessage.content = [
+					{
+						type: "text" as const,
+						content: processedContent,
+					},
+				];
 				messages.push(currentMessage as ChatMessage);
 			}
-			currentMessage = { role: "user", content: "" };
+			currentMessage = { role: "user", content: [] };
 			content = [];
 			inCallout = true;
-		} else if (line.startsWith("> [!success] CAO") || line.startsWith("> [!success]+ CAO")) {
+		} else if (line.startsWith(CALLOUT_AI_PREFIX)) {
 			if (currentMessage) {
 				let processedContent = content.join("\n").trim();
 				// Remove callout prefixes if we were in a callout, then parse wikilinks
@@ -163,14 +188,20 @@ export async function parseChat(
 						.join("\n")
 						.trim();
 				}
-				currentMessage.content = await parseUserPrompt(
+				const finalProcessedContent = await parseUserPrompt(
 					app,
 					processedContent,
 					processedWikilinks,
 				);
+				currentMessage.content = [
+					{
+						type: "text" as const,
+						content: finalProcessedContent,
+					},
+				];
 				messages.push(currentMessage as ChatMessage);
 			}
-			currentMessage = { role: "assistant", content: "" };
+			currentMessage = { role: "assistant", content: [] };
 			content = [];
 			inCallout = true;
 		} else {
@@ -188,11 +219,17 @@ export async function parseChat(
 				.join("\n")
 				.trim();
 		}
-		currentMessage.content = await parseUserPrompt(
+		const lastProcessedContent = await parseUserPrompt(
 			app,
 			processedContent,
 			processedWikilinks,
 		);
+		currentMessage.content = [
+			{
+				type: "text" as const,
+				content: lastProcessedContent,
+			},
+		];
 		messages.push(currentMessage as ChatMessage);
 	}
 
@@ -205,26 +242,12 @@ export async function parseChat(
 	return messages;
 }
 
-// Format detection and validation utilities
-export interface ChatValidationResult {
-	isValid: boolean;
-	messages?: ChatMessage[];
-	format?: "headers" | "callouts" | "empty";
-	error?: {
-		type: "format" | "empty_message" | "parsing";
-		message: string;
-	};
-}
-
-export async function validateChatBeforeResponse(
-	app: App,
+export async function validateChatFormat(
 	text: string,
 	useCallouts: boolean,
-): Promise<ChatValidationResult> {
-	// Step 1: Detect chat format
+): Promise<ChatFormatValidation> {
 	const detectedFormat = detectChatFormat(text);
 
-	// Step 2: Handle invalid formats
 	if (detectedFormat === "mixed") {
 		return {
 			isValid: false,
@@ -236,7 +259,6 @@ export async function validateChatBeforeResponse(
 		};
 	}
 
-	// Step 3: Handle empty format (invalid for conversations)
 	if (detectedFormat === "empty") {
 		return {
 			isValid: false,
@@ -247,7 +269,6 @@ export async function validateChatBeforeResponse(
 		};
 	}
 
-	// Step 4: Validate format consistency with settings
 	if (detectedFormat === "headers" && useCallouts) {
 		return {
 			isValid: false,
@@ -270,25 +291,18 @@ export async function validateChatBeforeResponse(
 		};
 	}
 
-	// Step 5: Parse messages
-	const messages = await parseChat(app, text);
-	if (!messages || messages.length === 0) {
-		return {
-			isValid: false,
-			error: {
-				type: "parsing",
-				message:
-					"Invalid chat format, messages should alternate user query and assistant response.",
-			},
-		};
-	}
+	const hasContent = text
+		.split("\n")
+		.some(
+			(line) =>
+				!line.startsWith(HEADER_USER_PREFIX) &&
+				!line.startsWith(HEADER_AI_PREFIX) &&
+				!line.startsWith(CALLOUT_USER_PREFIX) &&
+				!line.startsWith(CALLOUT_AI_PREFIX) &&
+				line.trim().length > 0,
+		);
 
-	// Step 6: Check if all messages are empty
-	// FIXME: need to slice for the prefix added in parseUserPrompt()
-	const allMessagesEmpty = messages.every(
-		(msg) => !msg.content.slice(12).trim(),
-	);
-	if (allMessagesEmpty) {
+	if (!hasContent) {
 		return {
 			isValid: false,
 			error: {
@@ -298,11 +312,9 @@ export async function validateChatBeforeResponse(
 		};
 	}
 
-	// Step 7: All validation passed
 	return {
 		isValid: true,
-		messages,
-		format: detectedFormat,
+		format: detectedFormat as "headers" | "callouts",
 	};
 }
 
@@ -315,18 +327,18 @@ export function detectChatFormat(
 	let hasCallouts = false;
 
 	for (const line of lines) {
-		if (line.startsWith("### Me") || line.startsWith("### CAO")) {
+		if (
+			line.startsWith(HEADER_USER_PREFIX) ||
+			line.startsWith(HEADER_AI_PREFIX)
+		) {
 			hasHeaders = true;
 		} else if (
-			line.startsWith("> [!question] Me") ||
-			line.startsWith("> [!question]+ Me") ||
-			line.startsWith("> [!success] CAO") ||
-			line.startsWith("> [!success]+ CAO")
+			line.startsWith(CALLOUT_USER_PREFIX) ||
+			line.startsWith(CALLOUT_AI_PREFIX)
 		) {
 			hasCallouts = true;
 		}
 
-		// Early exit if both formats detected
 		if (hasHeaders && hasCallouts) {
 			return "mixed";
 		}
@@ -341,24 +353,23 @@ export function detectChatFormat(
 	}
 }
 
-// Helper functions for callout formatting
 export function formatNewUserSection(
 	useCallouts: boolean,
 	forNewFile: boolean = false,
 ): string {
 	const prefix = forNewFile ? "" : "\n\n";
 	if (useCallouts) {
-		return prefix + "> [!question]+ Me\n> ";
+		return prefix + CALLOUT_USER_PREFIX + "\n> ";
 	} else {
-		return prefix + "### Me\n";
+		return prefix + HEADER_USER_PREFIX + "\n";
 	}
 }
 
 export function formatNewAISection(useCallouts: boolean): string {
 	if (useCallouts) {
-		return "\n\n> [!success]+ CAO\n";
+		return "\n\n" + CALLOUT_AI_PREFIX + "\n";
 	} else {
-		return "\n\n### CAO\n";
+		return "\n\n" + HEADER_AI_PREFIX + "\n";
 	}
 }
 
@@ -400,10 +411,7 @@ export function setCursorToEnd(editor: Editor): void {
 	editor.setCursor(lastLine, editor.getLine(lastLine).length);
 }
 
-export async function renderText(
-	editor: Editor,
-	text: string,
-): Promise<void> {
+export function renderText(editor: Editor, text: string): void {
 	const lastLine = editor.lastLine();
 	const pos = {
 		line: lastLine,
@@ -413,77 +421,6 @@ export async function renderText(
 	editor.scrollIntoView({ from: pos, to: pos }, true);
 }
 
-// Template processing utilities
-export function validateTemplateName(name: string): {
-	valid: boolean;
-	error?: string;
-} {
-	if (!name.trim()) {
-		return { valid: false, error: "Template name cannot be empty" };
-	}
-
-	// Allow alphanumeric characters, spaces, hyphens, and apostrophes
-	if (!/^[a-zA-Z0-9\s\-']+$/.test(name)) {
-		return {
-			valid: false,
-			error:
-				"Template name can only contain letters, numbers, spaces, hyphens, and apostrophes",
-		};
-	}
-
-	if (name.length > 20) {
-		return {
-			valid: false,
-			error: "Template name must be 20 characters or less",
-		};
-	}
-
-	return { valid: true };
-}
-
-export function processTemplateContent(template: string): {
-	processedContent: string;
-	cursorPosition?: { line: number; ch: number };
-} {
-	const cursorPlaceholder = "{cursor}";
-	const cursorIndex = template.indexOf(cursorPlaceholder);
-
-	if (cursorIndex === -1) {
-		return { processedContent: template };
-	}
-
-	// Calculate cursor position
-	const beforeCursor = template.substring(0, cursorIndex);
-	const lines = beforeCursor.split("\n");
-	const line = lines.length - 1;
-	const ch = lines[lines.length - 1].length;
-
-	// Remove cursor placeholder
-	const processedContent = template.replace(cursorPlaceholder, "");
-
-	return {
-		processedContent,
-		cursorPosition: { line, ch },
-	};
-}
-
-export function previewTemplate(template: string): string {
-	// Replace cursor placeholder with a visual indicator for preview
-	return template.replace("{cursor}", "[CURSOR]");
-}
-
-export function sanitizeTemplateName(input: string): string {
-	// Convert to lowercase, remove invalid characters, replace spaces with hyphens
-	return input
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, "")
-		.replace(/\s+/g, "-")
-		.replace(/-+/g, "-")
-		.replace(/^-|-$/g, "")
-		.substring(0, 20);
-}
-
-// Chat file discovery utilities
 export function getChatFiles(app: App, chatFolderPath: string) {
 	return app.vault
 		.getMarkdownFiles()
@@ -502,4 +439,85 @@ export function sortFilesByMtime<T extends { stat: { mtime: number } }>(
 export function formatChatDisplayName(fileName: string): string {
 	// Remove .md extension and return clean display name
 	return fileName.replace(/\.md$/, "");
+}
+
+export async function extractChatRequestSettings(
+	app: App,
+	currentFile: TFile | null,
+	defaultSettings: CAOSettings,
+): Promise<ChatRequestSettings> {
+	let settings: ChatRequestSettings = {
+		model: (() => {
+			switch (defaultSettings.provider) {
+				case "anthropic":
+					return defaultSettings.anthropicModel;
+				case "openai-compatible":
+					return defaultSettings.openaiModel;
+				default:
+					return "claude-sonnet-4-5"; // Fallback
+			}
+		})(),
+		maxTokens: defaultSettings.maxTokens,
+		temperature: defaultSettings.temperature,
+		systemPrompt: defaultSettings.systemPrompt,
+	};
+
+	// Override with frontmatter if file exists
+	if (currentFile) {
+		await app.fileManager.processFrontMatter(currentFile, (frontmatter) => {
+			// Type-safe extraction with validation
+			if (
+				FRONTMATTER_KEYS.MODEL in frontmatter &&
+				typeof frontmatter[FRONTMATTER_KEYS.MODEL] === "string" &&
+				frontmatter[FRONTMATTER_KEYS.MODEL].trim() !== ""
+			) {
+				settings.model = frontmatter[FRONTMATTER_KEYS.MODEL];
+			}
+
+			if (
+				FRONTMATTER_KEYS.MAX_TOKENS in frontmatter &&
+				typeof frontmatter[FRONTMATTER_KEYS.MAX_TOKENS] === "number" &&
+				!isNaN(frontmatter[FRONTMATTER_KEYS.MAX_TOKENS]) &&
+				frontmatter[FRONTMATTER_KEYS.MAX_TOKENS] > 0
+			) {
+				settings.maxTokens = frontmatter[FRONTMATTER_KEYS.MAX_TOKENS];
+			}
+
+			if (
+				FRONTMATTER_KEYS.TEMPERATURE in frontmatter &&
+				typeof frontmatter[FRONTMATTER_KEYS.TEMPERATURE] === "number" &&
+				!isNaN(frontmatter[FRONTMATTER_KEYS.TEMPERATURE])
+			) {
+				settings.temperature = frontmatter[FRONTMATTER_KEYS.TEMPERATURE];
+			}
+
+			if (
+				FRONTMATTER_KEYS.SYSTEM_PROMPT in frontmatter &&
+				typeof frontmatter[FRONTMATTER_KEYS.SYSTEM_PROMPT] === "string"
+			) {
+				settings.systemPrompt = frontmatter[FRONTMATTER_KEYS.SYSTEM_PROMPT];
+			}
+		});
+	}
+
+	return settings;
+}
+
+export async function writeChatSettingsToFrontmatter(
+	app: App,
+	file: TFile,
+	defaultSettings: CAOSettings,
+): Promise<void> {
+	const settings = await extractChatRequestSettings(
+		app,
+		null, // No existing frontmatter to override - use plugin defaults
+		defaultSettings,
+	);
+
+	await app.fileManager.processFrontMatter(file, (frontmatter) => {
+		frontmatter[FRONTMATTER_KEYS.MODEL] = settings.model;
+		frontmatter[FRONTMATTER_KEYS.MAX_TOKENS] = settings.maxTokens;
+		frontmatter[FRONTMATTER_KEYS.TEMPERATURE] = settings.temperature;
+		frontmatter[FRONTMATTER_KEYS.SYSTEM_PROMPT] = settings.systemPrompt;
+	});
 }
