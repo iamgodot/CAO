@@ -1,5 +1,5 @@
 import { App, Modal, Notice, PluginSettingTab, Setting } from "obsidian";
-import { CAOSettings, PromptTemplate } from "./types";
+import { CAOSettings, PromptTemplate } from "./types/settings";
 import CAO from "./main";
 
 export const DEFAULT_SETTINGS: CAOSettings = {

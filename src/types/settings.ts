@@ -1,3 +1,7 @@
+/**
+ * Plugin settings and configuration types
+ */
+
 export interface PromptTemplate {
 	name: string;     // Command name (e.g., "explain")
 	template: string; // Template content with optional {cursor} placeholder
@@ -18,9 +22,4 @@ export interface CAOSettings {
 	showStats: boolean;
 	useCallouts: boolean;
 	customPrompts: PromptTemplate[];
-}
-
-export interface ChatMessage {
-	role: "user" | "assistant";
-	content: string;
 }
