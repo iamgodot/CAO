@@ -3,13 +3,13 @@
  */
 
 export interface ContentBlock {
-  type: 'text';
+  type: "text";
   content: string;
   metadata?: Record<string, any>;
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: ContentBlock[];
 }
 
@@ -36,7 +36,7 @@ export interface ChatResponse {
 }
 
 export interface StreamingEvent {
-  type: 'content' | 'usage' | 'error' | 'done';
+  type: "content" | "usage" | "error" | "done";
   data: ContentBlock | Usage | Error | null;
 }
 
@@ -55,4 +55,3 @@ export interface ChatRequestSettings {
   temperature: number;
   systemPrompt: string;
 }
-
