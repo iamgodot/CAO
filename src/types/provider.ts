@@ -1,5 +1,4 @@
-import { ChatRequest, ChatResponse, StreamingEvent } from './content';
-
+import { ChatRequest, ChatResponse, StreamingEvent } from "./content";
 
 /**
  * Base configuration for all providers
@@ -11,8 +10,7 @@ export interface ProviderConfig {
 /**
  * Anthropic-specific configuration
  */
-export interface AnthropicConfig extends ProviderConfig {
-}
+export interface AnthropicConfig extends ProviderConfig {}
 
 /**
  * OpenAI-compatible provider configuration
