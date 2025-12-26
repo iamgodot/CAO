@@ -1,8 +1,16 @@
 # Claude AI for Obsidian
 
-CAO allows you to chat with Claude directly in a note.
+CAO allows you to chat with Claude directly in a note. You can either use Claude models with its official support, or leverage on OpenAI-compatible APIs(OpenAI, OpenRouter etc) for non-Claude models, such as ChatGPT.
 
-![](./demo.gif)
+![](./assets/demo1.gif)
+
+Instead of default format with headers, another option is to switch for callouts, which are foldable and provide more obvious differences between questions and answers.
+
+![](./assets/demo2.gif)
+
+You may also find it useful to create your own prompts to quickly insert them with templates and specified position for the cursor.
+
+![](./assets/demo3.gif)
 
 ## Features
 
